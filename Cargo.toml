@@ -2,5 +2,37 @@
 name = "clauchat"
 version = "0.1.0"
 edition = "2021"
+authors = ["baidhir hidair <justin.hidair@gmail.com>"]
+description = "A minimal chatbot UI for Claude 3.7 Sonnet"
 
 [dependencies]
+# GUI framework
+eframe = "0.31.0"         # Provides a cross-platform egui framework
+egui = "0.31.0"           # Immediate mode GUI library
+
+# Networking
+reqwest = { version = "0.11", features = ["json"] }  # HTTP client
+serde = { version = "1.0", features = ["derive"] }   # Serialization/deserialization
+serde_json = "1.0"                                   # JSON support
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }    # Async runtime
+
+# Configuration
+dotenv = "0.15.0"                                    # Environment variable loading
+dirs = "5.0.1"                                       # Finding config directory
+
+# Error handling
+anyhow = "1.0"                                       # Error handling
+thiserror = "1.0"                                    # Error definitions
+
+# Logging
+log = "0.4"                                          # Logging facade
+env_logger = "0.10"                                  # Logger implementation
+
+[profile.release]
+opt-level = 3             # Maximum optimization
+lto = true                # Link-time optimization
+codegen-units = 1         # Maximize performance optimizations
+panic = "abort"           # Abort on panic for smaller binary size
+strip = true              # Strip symbols from binary
