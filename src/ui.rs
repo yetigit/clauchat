@@ -31,7 +31,7 @@ pub fn render_header(
     ui.separator();
 
     if ui_state.settings_open {
-        egui::Frame::none()
+        egui::Frame::new()
             .fill(ui.style().visuals.extreme_bg_color)
             .show(ui, |ui| {
                 ui.heading("Settings");
@@ -95,9 +95,9 @@ pub fn render_error(ui: &mut Ui, error: &str) {
 
 pub fn render_message(ui: &mut Ui, message: &Message) {
     let (color, prefix) = match message.role {
-        Role::User => (Color32::RED, "You"),
-        Role::Assistant => (Color32::LIGHT_BLUE, "Claude"),
-        Role::System => (Color32::LIGHT_GREEN, "System"),
+        Role::User => (Color32::WHITE, "You"),
+        Role::Assistant => (Color32::BLUE, "Claude"),
+        Role::System => (Color32::GREEN, "System"),
     };
     ui.horizontal(|ui| {
         ui.label(RichText::new(format!("{}: ", prefix)).color(color).strong());
@@ -111,6 +111,7 @@ pub fn render_chat_area(ui: &mut Ui, messages: &[Message]) {
     ScrollArea::vertical()
         .auto_shrink([false, false])
         .stick_to_bottom(true)
+        .max_height(ui.available_height() - 200.0)
         .show(ui, |ui| {
             for message in messages {
                 render_message(ui, message);
@@ -126,27 +127,33 @@ pub fn render_input_area(
 ) {
     ui.separator();
 
-    ui.horizontal(|ui| {
-        let text_edit = TextEdit::multiline(input)
-            .hint_text("Type a message...")
-            .desired_rows(3)
-            .lock_focus(true);
-            
-        let text_edit_response = ui.add(text_edit);
-        
-        // Handle Enter key to send (but allow Shift+Enter for new lines)
-        let pressed_enter = text_edit_response.lost_focus() && 
-                           ui.input(|i| i.key_pressed(egui::Key::Enter) && !i.modifiers.shift);
-        
-        // Send button
-        let button = ui.add_enabled(
-            !input.trim().is_empty() && !is_sending,
-            Button::new(if is_sending { "Sending..." } else { "Send" })
-        );
-        
-        // Call the callback if either the enter key was pressed or the button was clicked
-        if (pressed_enter || button.clicked()) && !input.trim().is_empty() && !is_sending {
-            on_send();
-        }
-    });
+    ui.allocate_ui_with_layout(
+        egui::vec2(ui.available_width(), 200.0),
+        Layout::left_to_right(Align::Center),
+        |ui| {
+            let text_edit = TextEdit::multiline(input)
+                .hint_text("Type a message...")
+                .desired_width(ui.available_width() - 80.0)
+                .desired_rows(10)
+                .lock_focus(true);
+
+            let text_edit_response = ui.add(text_edit);
+
+            // Handle Enter key to send (but allow Shift+Enter for new lines)
+            let pressed_enter = text_edit_response.lost_focus()
+                && ui.input(|i| i.key_pressed(egui::Key::Enter) && !i.modifiers.shift);
+
+            // Send button
+            let button = ui.add_enabled(
+                !input.trim().is_empty() && !is_sending,
+                Button::new(RichText::new(if is_sending { "Sending..." } else { "Send" }).strong())
+                    .min_size(egui::vec2(80.0, 50.0)),
+            );
+
+            // Call the callback if either the enter key was pressed or the button was clicked
+            if (pressed_enter || button.clicked()) && !input.trim().is_empty() && !is_sending {
+                on_send();
+            }
+        },
+    );
 }

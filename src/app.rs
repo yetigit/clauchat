@@ -73,6 +73,7 @@ impl ClauChatApp {
         let client = match &self.client {
             Some(client) => client,
             None => {
+                error!("API key not configured. Please add it in settings.");
                 self.error = Some("API key not configured. Please add it in settings.".to_string());
                 return;
             }
@@ -160,18 +161,12 @@ impl ClauChatApp {
 impl eframe::App for ClauChatApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame){
         egui::CentralPanel::default().show(ctx, |ui| {
-
             let mut update_api_key_action: Option<String> = None;
-            ui::render_header(
-                ui,
-                &mut self.ui_state,
-                &mut self.config,
-                |new_key| {
-                    update_api_key_action = Some(new_key);
-                },
-            );
+            ui::render_header(ui, &mut self.ui_state, &mut self.config, |new_key| {
+                update_api_key_action = Some(new_key);
+            });
 
-            if let Some(new_key) = update_api_key_action{
+            if let Some(new_key) = update_api_key_action {
                 self.update_api_key(new_key);
             }
 
@@ -180,18 +175,19 @@ impl eframe::App for ClauChatApp {
             }
 
             //
-            ui::render_chat_area(ui, &self.messages);
+            ui.vertical(|ui| {
+                ui::render_chat_area(ui, &self.messages);
 
-            let mut should_send_message = false;
-            //
-            ui::render_input_area(
-                ui,
-                &mut self.input,
-                self.is_sending,
-                || { should_send_message = true;});
-            if should_send_message {
-                self.send_message();
-            }
+                let mut should_send_message = false;
+                //
+                ui::render_input_area(ui, &mut self.input, self.is_sending, || {
+                    should_send_message = true;
+                });
+                if should_send_message {
+                    self.send_message();
+                    // TODO: request repaint ui ?
+                }
+            });
         });
     }
 

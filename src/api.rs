@@ -66,7 +66,7 @@ pub struct AnthropicClient {
 impl AnthropicClient {
     pub fn new(api_key: String) -> Self {
         let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(120))
+            .timeout(std::time::Duration::from_secs(30)) // timeout request in 30 sec
             .build()
             .expect("Failed to create HTTP client");
 
