@@ -3,9 +3,10 @@ use egui::Context;
 use log::error;
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
+use egui::Visuals;
 
 use crate::api::{AnthropicClient, Message, Role};
-use crate::config::Config;
+use crate::config::{ Config, Theme};
 use crate::ui;
 
 /// application state
@@ -38,6 +39,9 @@ pub struct ClauChatApp {
 impl ClauChatApp {
     pub fn new(cc: &CreationContext) -> Self {
         let runtime = Runtime::new().expect("Failed to create Tokio runtime");
+
+        let ctx = &cc.egui_ctx;
+        ctx.set_visuals(Visuals::dark());
 
         let config = Config::load().unwrap_or_default();
 
@@ -129,12 +133,12 @@ impl ClauChatApp {
         }
     }
 
-    fn update_api_key(&mut self, new_key: String){
+    fn update_api_key(&mut self, new_key: String) {
         self.config.api_key = new_key;
         if !self.config.api_key.is_empty() {
             self.client = Some(AnthropicClient::new(self.config.api_key.clone()));
             self.error = None;
-        }else{
+        } else {
             self.client = None;
         }
         self.save_config();
@@ -143,6 +147,14 @@ impl ClauChatApp {
 
 impl eframe::App for ClauChatApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame){
+        match self.config.theme {
+            Theme::Dark => {
+                ctx.set_visuals(Visuals::dark());
+            }
+            Theme::Light => {
+                ctx.set_visuals(Visuals::light());
+            }
+        }
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut update_api_key_action: Option<String> = None;
             ui::render_header(ui, &mut self.ui_state, &mut self.config, |new_key| {
@@ -168,7 +180,6 @@ impl eframe::App for ClauChatApp {
                 });
                 if should_send_message {
                     self.send_message();
-                    // TODO: request repaint ui ?
                 }
             });
         });

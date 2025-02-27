@@ -32,7 +32,7 @@ pub fn render_header(
 
     if ui_state.settings_open {
         egui::Frame::new()
-            .fill(ui.style().visuals.extreme_bg_color)
+            // .fill(ui.style().visuals.extreme_bg_color)
             .show(ui, |ui| {
                 ui.heading("Settings");
 
@@ -67,12 +67,6 @@ pub fn render_header(
                         config.theme = Theme::Dark;
                     }
 
-                    if ui
-                        .selectable_label(matches!(current_theme, Theme::System), "System")
-                        .clicked()
-                    {
-                        config.theme = Theme::System;
-                    }
                 });
 
                 ui.horizontal(|ui| {
@@ -96,8 +90,8 @@ pub fn render_error(ui: &mut Ui, error: &str) {
 pub fn render_message(ui: &mut Ui, message: &Message) {
     let (color, prefix) = match message.role {
         Role::User => (Color32::WHITE, "You"),
-        Role::Assistant => (Color32::BLUE, "Claude"),
-        Role::System => (Color32::GREEN, "System"),
+        Role::Assistant => (Color32::LIGHT_BLUE, "Claude"),
+        Role::System => (Color32::LIGHT_GREEN, "System"),
     };
     ui.horizontal(|ui| {
         ui.label(RichText::new(format!("{}: ", prefix)).color(color).strong());

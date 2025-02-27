@@ -20,9 +20,6 @@ pub enum Theme {
     #[serde(rename = "dark")]
     #[default]
     Dark,
-
-    #[serde(rename = "system")]
-    System,
 }
 
 impl Default for Config {
