@@ -143,6 +143,14 @@ impl ClauChatApp {
         }
         self.save_config();
     }
+
+    fn apply_font_size(&self, ctx:&Context) {
+        let mut style = (*ctx.style()).clone();
+        style.text_styles.iter_mut().for_each(|(_text_style, font_id)|{
+            font_id.size = self.config.font_size;
+        });
+        ctx.set_style(style) ;
+    }
 }
 
 impl eframe::App for ClauChatApp {
@@ -157,6 +165,9 @@ impl eframe::App for ClauChatApp {
         }
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut update_api_key_action: Option<String> = None;
+
+            // apply font size
+            self.apply_font_size(ctx);
             ui::render_header(ui, &mut self.ui_state, &mut self.config, |new_key| {
                 update_api_key_action = Some(new_key);
             });
