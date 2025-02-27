@@ -1,4 +1,5 @@
 use eframe::egui::{self, Button, Align, Color32, Layout, RichText, ScrollArea, TextEdit, Ui};
+use log::{error, info};
 
 use crate::api::{Message, Role};
 use crate::config::{Config, Theme};
@@ -75,11 +76,21 @@ pub fn render_header(
                     let slider_response =
                         ui.add(egui::Slider::new(&mut config.font_size, 12.0..=24.0).step_by(1.0));
                     // save on slider change
-                    // TODO: save when the sliding is done
-                    if slider_response.changed() {
+                    if slider_response.drag_stopped() {
                         config
                             .save()
-                            .unwrap_or_else(|_| config.font_size = old_font_size);
+                            .unwrap_or_else(|e| {
+                                error!("Could not save config: {}", e);
+                                config.font_size = old_font_size;
+                            });
+                    }else if !slider_response.dragged() && slider_response.changed(){
+                        config
+                            .save()
+                            .unwrap_or_else(|e| {
+                                error!("Could not save config: {}", e);
+                                config.font_size = old_font_size;
+                            });
+
                     }
                 });
 
