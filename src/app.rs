@@ -94,6 +94,8 @@ impl ClauChatApp {
 
         if !good_key {
             error!("Bad API key, request process canceled");
+            self.client = None;
+            self.error = Some("Bad API key, request process canceled".to_string());
             return;
         }else {
             info!("Good API key");
