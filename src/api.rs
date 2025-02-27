@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::{debug, error};
+use log::{info, debug, error};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -99,7 +99,7 @@ impl AnthropicClient {
             .send()
             .await?;
 
-        println!("Sent input");
+        info!("Request was made from input");
 
         if !response.status().is_success() {
             let status = response.status();
