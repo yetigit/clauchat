@@ -1,5 +1,5 @@
 use eframe::{egui, NativeOptions};
-use log::{info, error};
+use log::info;
 use egui::ViewportBuilder;
 
 mod app;

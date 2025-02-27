@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
-use log::{error, info};
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -71,7 +71,4 @@ impl Config {
         Ok(())
     }
 
-    pub fn is_valid(&self) -> bool {
-        !self.api_key.is_empty()
-    }
 }

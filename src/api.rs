@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::{info, debug, error};
+use log::{info, debug};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

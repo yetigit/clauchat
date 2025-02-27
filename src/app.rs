@@ -1,6 +1,6 @@
 use eframe::{egui, CreationContext};
-use egui::{Context, ScrollArea, TextEdit};
-use log::{error, info};
+use egui::Context;
+use log::error;
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
@@ -47,11 +47,10 @@ impl ClauChatApp {
             None
         };
 
-        let mut messages = Vec::new();
-        messages.push(Message {
+        let messages = vec![Message {
             role: Role::Assistant,
             content: "How can I help you?".to_string(),
-        });
+        }];
 
         Self {
             input: String::new(),
@@ -123,22 +122,6 @@ impl ClauChatApp {
         });
     }
 
-    fn handle_response(&mut self, response: Result<String, String>) {
-        self.is_sending = false;
-
-        match response {
-            Ok(content) => {
-                self.messages.push(Message {
-                    role: Role::Assistant,
-                    content,
-                });
-            }
-            Err(error) => {
-                error!("API Error: {}", error);
-                self.error = Some(format!("API Error: {}", error));
-            }
-        }
-    }
 
     fn save_config(&self) {
         if let Err(err) = self.config.save() {
