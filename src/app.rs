@@ -1,6 +1,6 @@
 use eframe::{egui, CreationContext};
 use egui::Context;
-use log::error;
+use log::{ info, error };
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 use egui::Visuals;
@@ -197,6 +197,8 @@ impl eframe::App for ClauChatApp {
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        let config_path = Config::config_path().unwrap();
         self.save_config();
+        info!("Configuration saved to {}", config_path.display());
     }
 }

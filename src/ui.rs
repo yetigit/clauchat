@@ -70,8 +70,17 @@ pub fn render_header(
                 });
 
                 ui.horizontal(|ui| {
+                    let old_font_size = config.font_size;
                     ui.label("Font Size:");
-                    ui.add(egui::Slider::new(&mut config.font_size, 12.0..=24.0).step_by(1.0));
+                    let slider_response =
+                        ui.add(egui::Slider::new(&mut config.font_size, 12.0..=24.0).step_by(1.0));
+                    // save on slider change
+                    // TODO: save when the sliding is done
+                    if slider_response.changed() {
+                        config
+                            .save()
+                            .unwrap_or_else(|_| config.font_size = old_font_size);
+                    }
                 });
 
                 ui.separator();
@@ -105,7 +114,7 @@ pub fn render_chat_area(ui: &mut Ui, messages: &[Message]) {
     ScrollArea::vertical()
         .auto_shrink([false, false])
         .stick_to_bottom(true)
-        .max_height(ui.available_height() - 200.0)
+        .max_height(ui.available_height() * 0.7)
         .show(ui, |ui| {
             for message in messages {
                 render_message(ui, message);
@@ -121,14 +130,15 @@ pub fn render_input_area(
 ) {
     ui.separator();
 
+    let available_height = ui.available_height();
     ui.allocate_ui_with_layout(
-        egui::vec2(ui.available_width(), 200.0),
+        egui::vec2(ui.available_width(), available_height),
         Layout::left_to_right(Align::Center),
         |ui| {
             let text_edit = TextEdit::multiline(input)
                 .hint_text("Type a message...")
                 .desired_width(ui.available_width() - 80.0)
-                .desired_rows(10)
+                .min_size(egui::vec2(0.0, available_height))
                 .lock_focus(true);
 
             let text_edit_response = ui.add(text_edit);
@@ -148,6 +158,8 @@ pub fn render_input_area(
             if (pressed_enter || button.clicked()) && !input.trim().is_empty() && !is_sending {
                 on_send();
             }
+
+            ui.add_space(14.0);
         },
     );
 }

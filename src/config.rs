@@ -33,7 +33,7 @@ impl Default for Config {
 }
 
 impl Config {
-    fn config_path() -> Result<PathBuf> {
+    pub fn config_path() -> Result<PathBuf> {
         let config_dir = dirs::config_dir()
             .context("Could not find config directory")?
             .join("clauchat");
