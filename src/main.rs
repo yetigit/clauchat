@@ -14,11 +14,10 @@ use app::ClauChatApp;
 //-[] save the api key from the settings only if it differs from the current api_key
 
 fn main() -> Result<(), eframe::Error> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+    dotenv::dotenv().ok();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
         .format_timestamp_secs()
         .init();
-
-    dotenv::dotenv().ok();
 
     info!("Starting ClauChat app");
 

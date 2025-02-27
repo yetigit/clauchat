@@ -76,6 +76,34 @@ impl AnthropicClient {
         }
     }
 
+    pub async fn is_api_key_valid(api_key: String) -> Result<bool> {
+        const API_URL: &str = "https://api.anthropic.com/v1/models";
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5)) // shorter timeout for validation
+            .build()
+            .expect("Failed to create HTTP client");
+
+        let response = client
+            .get(API_URL)
+            .header("x-api-key", api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .send()
+            .await?;
+
+        let success = response.status().is_success();
+        debug!(
+            "API key status: {}",
+            if success {
+                "good key"
+            } else {
+                "bad key"
+            }
+        );
+        Ok(success)
+    }
+
     pub async fn send_message(&self, messages: Vec<Message>) -> Result<String> {
         const API_URL: &str = "https://api.anthropic.com/v1/messages";
         const MODEL: &str = "claude-3-7-sonnet-20250219";

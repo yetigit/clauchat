@@ -1,6 +1,6 @@
 use eframe::{egui, CreationContext};
 use egui::Context;
-use log::{ info, error };
+use log::{debug, info, error };
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 use egui::Visuals;
@@ -81,6 +81,23 @@ impl ClauChatApp {
                 return;
             }
         };
+
+        let api_key_clone = self.config.api_key.clone();
+        let good_key = self.runtime.block_on(async move {
+            AnthropicClient::is_api_key_valid(api_key_clone)
+                .await
+                .unwrap_or_else(|e| {
+                    error!("API key validation request failed: {}", e);
+                    false
+                })
+        });
+
+        if !good_key {
+            error!("Bad API key, request process canceled");
+            return;
+        }else {
+            info!("Good API key");
+        }
 
         let user_message = Message {
             role: Role::User,
