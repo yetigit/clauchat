@@ -115,7 +115,6 @@ impl AnthropicClient {
             max_tokens: MAX_TOKENS,
         };
 
-        debug!("Sending request to Anthropic API: {:?}", request);
 
         let response = self
             .client
@@ -127,7 +126,7 @@ impl AnthropicClient {
             .send()
             .await?;
 
-        info!("Request was made from input");
+        debug!("Request was made to Anthropic API: {:?}", request);
 
         if !response.status().is_success() {
             let status = response.status();
@@ -145,6 +144,7 @@ impl AnthropicClient {
                 full_content.push_str(&content_block.text);
             }
         }
+        // debug!("Extracted response: {}", full_content);
 
         Ok(full_content)
     }

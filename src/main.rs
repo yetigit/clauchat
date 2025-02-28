@@ -10,8 +10,10 @@ mod ui;
 use app::ClauChatApp;
 
 //TODO:
-//-[] check if the api key is valid not if it is empty.
-//-[] save the api key from the settings only if it differs from the current api_key
+//-[] estimate cost of input (display in real time if possible)
+//-[] print total cost in realtime
+//-[] animation for response waiting time
+//-[] display code blocks
 
 fn main() -> Result<(), eframe::Error> {
     dotenv::dotenv().ok();

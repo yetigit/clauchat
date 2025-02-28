@@ -1,7 +1,7 @@
 use eframe::{egui, CreationContext};
 use egui::Context;
 use log::{debug, info, error };
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 use tokio::runtime::Runtime;
 use egui::Visuals;
 
@@ -31,6 +31,9 @@ pub struct ClauChatApp {
 
     /// basic ui state
     ui_state: ui::UiState,
+
+    /// channel for api response thread transit 
+    response_receiver: Option<mpsc::Receiver<Result<String, String>>>,
 
     /// error message if any
     error: Option<String>,
@@ -64,8 +67,26 @@ impl ClauChatApp {
             runtime,
             client,
             ui_state: ui::UiState::default(),
+            response_receiver: None,
             error: None,
         }
+    }
+
+    fn handle_api_response(&mut self, response: Result<String, String>) {
+        match response {
+            Ok(content) => {
+                let assistant_message = Message {
+                    role: Role::Assistant,
+                    content,
+                };
+                self.messages.push(assistant_message);
+            }
+            Err(err) => {
+                error!("Failed to get valid response: {}", err);
+                self.error = Some(format!("Failed to get valid response: {}", err));
+            }
+        }
+        self.is_sending = false;
     }
 
     fn send_message(&mut self) {
@@ -106,6 +127,7 @@ impl ClauChatApp {
             content: self.input.clone(),
         };
         self.messages.push(user_message);
+        self.error = None;
 
         std::mem::take(&mut self.input);
         self.is_sending = true;
@@ -130,13 +152,18 @@ impl ClauChatApp {
         });
 
         let ctx = egui::Context::clone(&egui::Context::default());
+        let (tx, rx) = mpsc::channel();
+        self.response_receiver = Some(rx);
+
         std::thread::spawn(move || loop {
             let response = {
                 let mut result = result.lock().unwrap();
                 result.take()
             };
 
-            if response.is_some() {
+            if let Some(response) = response {
+                debug!("Got some response");
+                let _ = tx.send(response);
                 ctx.request_repaint();
                 break;
             }
@@ -182,6 +209,15 @@ impl eframe::App for ClauChatApp {
                 ctx.set_visuals(Visuals::light());
             }
         }
+
+        if let Some(receiver) = &self.response_receiver {
+            if let Ok(response) = receiver.try_recv() {
+                info!("Handling response");
+                self.handle_api_response(response);
+                self.response_receiver = None;
+            }
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut update_api_key_action: Option<String> = None;
 
