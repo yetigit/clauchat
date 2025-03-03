@@ -3,6 +3,8 @@ use log::{info, debug};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::price::ModelPricing;
+
 /// Roles for messages in the conversation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Role {
@@ -63,6 +65,18 @@ pub struct AnthropicClient {
     client: Arc<reqwest::Client>,
     model: String,
 }
+
+impl Message { 
+    pub fn token_count_heuristic(&self) -> usize { 
+        let char_count = self.content.chars().count();
+        (char_count as f64 / 4.0).ceil() as usize 
+    }
+    pub fn input_price_heuristic(&self, model_price: &ModelPricing) -> f64 {
+        let token_count = self.token_count_heuristic();
+        model_price.input_cost_per_million * (token_count as f64 / 1000000.0)
+    }
+
+} 
 
 impl AnthropicClient {
     pub fn new(api_key: String) -> Self {
