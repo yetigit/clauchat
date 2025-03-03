@@ -155,7 +155,8 @@ pub fn render_input_area(
             let text_edit_response = ui.add(text_edit);
 
             // Handle Enter key to send (but allow Shift+Enter for new lines)
-            let pressed_enter = ui.input(|i| i.key_pressed(egui::Key::Enter) && i.modifiers.shift);
+            let pressed_enter = text_edit_response.has_focus()
+                && ui.input(|i| i.key_pressed(egui::Key::Enter) && i.modifiers.shift);
 
             // Send button
             let button = ui.add_enabled(
