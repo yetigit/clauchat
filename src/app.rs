@@ -4,10 +4,12 @@ use log::{debug, info, error };
 use std::sync::{Arc, Mutex, mpsc};
 use tokio::runtime::Runtime;
 use egui::Visuals;
+use std::collections::HashMap;
 
 use crate::api::{AnthropicClient, Message, Role};
 use crate::config::{ Config, Theme};
 use crate::ui;
+use crate::price::{fetch_model_pricing, ModelPricing};
 
 /// application state
 pub struct ClauChatApp {
@@ -37,6 +39,13 @@ pub struct ClauChatApp {
 
     /// error message if any
     error: Option<String>,
+
+    /// model being used
+    model: String,
+
+    /// token pricing info
+    pricing_data: Option<HashMap<String, ModelPricing>>,
+
 }
 
 impl ClauChatApp {
@@ -47,6 +56,12 @@ impl ClauChatApp {
         ctx.set_visuals(Visuals::dark());
 
         let config = Config::load().unwrap_or_default();
+
+        // TODO: pass it to anthropic client 
+        const MODEL: &str = "claude-3-7-sonnet-20250219";
+        let price_data = runtime.block_on(async {
+            fetch_model_pricing(Some(MODEL)).await
+        }).unwrap();
 
         let client = if !config.api_key.is_empty() {
             Some(AnthropicClient::new(config.api_key.clone()))
@@ -69,6 +84,8 @@ impl ClauChatApp {
             ui_state: ui::UiState::default(),
             response_receiver: None,
             error: None,
+            model: MODEL.to_string(),
+            pricing_data: price_data,
         }
     }
 

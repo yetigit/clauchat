@@ -61,6 +61,7 @@ struct AnthropicResponse {
 pub struct AnthropicClient {
     api_key: String,
     client: Arc<reqwest::Client>,
+    model: String,
 }
 
 impl AnthropicClient {
@@ -73,6 +74,8 @@ impl AnthropicClient {
         Self {
             api_key,
             client: Arc::new(client),
+            // TODO: pass it as argument to ::new() instead
+            model: "claude-3-7-sonnet-20250219".to_string(),
         }
     }
 
@@ -106,11 +109,10 @@ impl AnthropicClient {
 
     pub async fn send_message(&self, messages: Vec<Message>) -> Result<String> {
         const API_URL: &str = "https://api.anthropic.com/v1/messages";
-        const MODEL: &str = "claude-3-7-sonnet-20250219";
         const MAX_TOKENS: u32 = 4096;
 
         let request = AnthropicRequest {
-            model: MODEL.to_string(),
+            model: self.model.clone(),
             messages,
             max_tokens: MAX_TOKENS,
         };
