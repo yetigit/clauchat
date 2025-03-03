@@ -75,6 +75,10 @@ impl Message {
         let token_count = self.token_count_heuristic();
         model_price.input_cost_per_million * (token_count as f64 / 1000000.0)
     }
+    pub fn output_price_heuristic(&self, model_price: &ModelPricing) -> f64 {
+        let token_count = self.token_count_heuristic();
+        model_price.output_cost_per_million * (token_count as f64 / 1000000.0)
+    }
 
 } 
 
