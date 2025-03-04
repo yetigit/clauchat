@@ -174,18 +174,20 @@ pub fn render_input_area(
 
             if let Some(_input_cost) = input_cost {
                 let overlay_pos = ui.min_rect().max - egui::vec2(78.0, 48.0);
-                ui.allocate_ui_at_rect(
-                    egui::Rect::from_min_size(overlay_pos, egui::vec2(72.0, 40.0)),
-                    |ui| {
-                        let overlay_text = RichText::new(_input_cost)
-                            .color(Color32::from_rgba_premultiplied(250, 250, 210, 255))
-                            .size(14.0);
-                        ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {
-                            // debug!("make price overlay");
-                            ui.label(overlay_text);
-                        });
-                    },
-                );
+                let builder = egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
+                    overlay_pos,
+                    egui::vec2(72.0, 40.0),
+                ));
+
+                ui.allocate_new_ui(builder, |ui| {
+                    let overlay_text = RichText::new(_input_cost)
+                        .color(Color32::from_rgba_premultiplied(250, 250, 210, 255))
+                        .size(14.0);
+                    ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {
+                        // debug!("make price overlay");
+                        ui.label(overlay_text);
+                    });
+                });
             }
 
             // Handle Enter key to send (but allow Shift+Enter for new lines)
