@@ -149,44 +149,25 @@ impl ClauChatApp {
         std::mem::take(&mut self.input);
         self.is_sending = true;
 
-        // clone for threads
+        // clone for async
         let client = client.clone();
         let messages = self.messages.clone();
-        let result: Arc<Mutex<Option<Result<String, String>>>> = Arc::new(Mutex::new(None));
-        let result_clone = result.clone();
 
+        let (tx, rx) = mpsc::channel();
+        self.response_receiver = Some(rx);
         self.runtime.spawn(async move {
             match client.send_message(messages).await {
                 Ok(response) => {
-                    let mut result = result_clone.lock().unwrap();
-                    *result = Some(Ok(response));
+                    debug!("Got some response");
+                    let _ = tx.send(Ok(response));
                 }
                 Err(err) => {
-                    let mut result = result_clone.lock().unwrap();
-                    *result = Some(Err(err.to_string()));
+                    let _ = tx.send(Err(err.to_string()));
                 }
             }
         });
 
-        let ctx = egui::Context::clone(&egui::Context::default());
-        let (tx, rx) = mpsc::channel();
-        self.response_receiver = Some(rx);
 
-        std::thread::spawn(move || loop {
-            let response = {
-                let mut result = result.lock().unwrap();
-                result.take()
-            };
-
-            if let Some(response) = response {
-                debug!("Got some response");
-                let _ = tx.send(response);
-                ctx.request_repaint();
-                break;
-            }
-
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        });
     }
 
 
@@ -258,7 +239,7 @@ impl eframe::App for ClauChatApp {
 
                 let mut should_send_message = false;
 
-                let mut input_cost_avail: Option<String> = match &self.pricing_data {
+                let input_cost_avail: Option<String> = match &self.pricing_data {
                     Some(pricing_data) => {
                         let input_cost = get_tokens_heur_price(
                             &self.input, TokenType::InputToken,

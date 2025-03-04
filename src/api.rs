@@ -182,8 +182,13 @@ impl AnthropicClient {
         Ok(full_content)
     }
 
-    // TODO: use
     pub async fn count_token(&self, message: &str) -> Result<u32> {
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10)) // enough to count ugh ?
+            .build()
+            .expect("Failed to create HTTP client");
+
         const API_URL: &str = "https://api.anthropic.com/v1/messages/count_tokens";
         const MAX_TOKENS: u32 = 4096;
 
@@ -196,8 +201,7 @@ impl AnthropicClient {
             max_tokens: MAX_TOKENS,
         };
 
-        let response = self
-            .client
+        let response = client
             .post(API_URL)
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
@@ -217,6 +221,25 @@ impl AnthropicClient {
         debug!("Received response: {:?}", anthropic_response);
 
         Ok(anthropic_response.input_tokens)
+    }
+
+    // TODO: use
+    pub async fn get_tokens_price(
+        &self,
+        message: &str,
+        toktype: TokenType,
+        model_price: &ModelPricing,
+    ) -> Result<f64> {
+
+        let token_count = self.count_token(message).await?;
+        match toktype {
+            TokenType::InputToken => {
+                Ok(model_price.input_cost_per_million * (token_count as f64 / 1000000.0))
+            }
+            TokenType::OutputToken => {
+                Ok(model_price.output_cost_per_million * (token_count as f64 / 1000000.0))
+            }
+        }
     }
 
 }
