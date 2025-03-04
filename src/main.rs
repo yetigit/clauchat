@@ -11,10 +11,15 @@ mod price;
 use app::ClauChatApp;
 
 //TODO:
-//-[] estimate cost of input (display in real time if possible)
+//-[x] estimate cost of input (display in real time if possible)
+//-[] estimate cost using anth api
 //-[] print total cost in realtime
 //-[] animation for response waiting time
 //-[] display code blocks
+// ___
+//-[] save window rect in config
+//-[] add scroll area for text input
+//-[] ctrl middle mouse for font adjust
 
 fn main() -> Result<(), eframe::Error> {
     dotenv::dotenv().ok();

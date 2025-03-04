@@ -80,7 +80,16 @@ impl Message {
         model_price.output_cost_per_million * (token_count as f64 / 1000000.0)
     }
 
+
 } 
+
+pub fn input_price_heuristic(input_str: &str, model_price: &ModelPricing) -> f64 {
+    let token_count = {
+        let char_count = input_str.chars().count();
+        (char_count as f64 / 4.0).ceil() as usize
+    };
+    model_price.input_cost_per_million * (token_count as f64 / 1000000.0)
+}
 
 impl AnthropicClient {
     pub fn new(api_key: String) -> Self {

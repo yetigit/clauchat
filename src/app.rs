@@ -6,7 +6,7 @@ use tokio::runtime::Runtime;
 use egui::Visuals;
 use std::collections::HashMap;
 
-use crate::api::{AnthropicClient, Message, Role};
+use crate::api::{input_price_heuristic, AnthropicClient, Message, Role};
 use crate::config::{ Config, Theme};
 use crate::ui;
 use crate::price::{fetch_model_pricing, ModelPricing};
@@ -257,8 +257,21 @@ impl eframe::App for ClauChatApp {
                 ui::render_chat_area(ui, &self.messages);
 
                 let mut should_send_message = false;
+
+                let mut input_cost_avail: Option<String> = match &self.pricing_data {
+                    Some(pricing_data) => {
+                        let input_cost = input_price_heuristic(
+                            &self.input,
+                            pricing_data.get(&self.model).unwrap(),
+                        );
+                        Some(format!("${:.6}", input_cost))
+                    }
+                    None => None,
+                };
+
                 //
-                ui::render_input_area(ui, &mut self.input, self.is_sending, || {
+                ui::render_input_area(ui, &mut self.input, 
+                    input_cost_avail, self.is_sending, || {
                     should_send_message = true;
                 });
                 if should_send_message {
