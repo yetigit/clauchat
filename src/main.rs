@@ -17,11 +17,13 @@ use app::ClauChatApp;
 //-[] animation for response waiting time
 //-[] display code blocks
 //-[] change colors of light theme
+//-[] implement claude's system option, 
+//-[] implement claude temperature setting
+//-[] implement prompt caching
 // ___
 //-[] save window rect in config
 //-[] add scroll area for text input
 //-[] ctrl middle mouse for font adjust
-//-[] implement claude's system option, 
 //have it in config/settings
 
 fn main() -> Result<(), eframe::Error> {
