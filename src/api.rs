@@ -5,6 +5,11 @@ use std::sync::Arc;
 
 use crate::price::ModelPricing;
 
+pub enum TokenType { 
+    InputToken,
+    OutputToken,
+}
+
 /// Roles for messages in the conversation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Role {
@@ -58,6 +63,11 @@ struct AnthropicResponse {
     content: Vec<ContentBlock>,
 }
 
+#[derive(Debug, Deserialize)]
+struct AntTokCountResponse {
+    input_tokens: u32,
+}
+
 /// Http client for requests to anth
 #[derive(Clone)]
 pub struct AnthropicClient {
@@ -66,30 +76,24 @@ pub struct AnthropicClient {
     model: String,
 }
 
-impl Message { 
-    pub fn token_count_heuristic(&self) -> usize { 
-        let char_count = self.content.chars().count();
-        (char_count as f64 / 4.0).ceil() as usize 
-    }
-    pub fn input_price_heuristic(&self, model_price: &ModelPricing) -> f64 {
-        let token_count = self.token_count_heuristic();
-        model_price.input_cost_per_million * (token_count as f64 / 1000000.0)
-    }
-    pub fn output_price_heuristic(&self, model_price: &ModelPricing) -> f64 {
-        let token_count = self.token_count_heuristic();
-        model_price.output_cost_per_million * (token_count as f64 / 1000000.0)
-    }
 
-
-} 
-
-pub fn input_price_heuristic(input_str: &str, model_price: &ModelPricing) -> f64 {
-    let token_count = {
-        let char_count = input_str.chars().count();
-        (char_count as f64 / 4.0).ceil() as usize
-    };
-    model_price.input_cost_per_million * (token_count as f64 / 1000000.0)
+fn token_count_heuristic(content: &str) -> usize {
+    let char_count = content.chars().count();
+    (char_count as f64 / 4.0).ceil() as usize
 }
+
+pub fn get_tokens_heur_price(content: &str, toktype: TokenType, model_price: &ModelPricing) -> f64 {
+    let token_count = token_count_heuristic(content);
+    match toktype {
+        TokenType::InputToken => {
+            model_price.input_cost_per_million * (token_count as f64 / 1000000.0)
+        }
+        TokenType::OutputToken => {
+            model_price.output_cost_per_million * (token_count as f64 / 1000000.0)
+        }
+    }
+}
+
 
 impl AnthropicClient {
     pub fn new(api_key: String) -> Self {
@@ -177,4 +181,42 @@ impl AnthropicClient {
 
         Ok(full_content)
     }
+
+    // TODO: use
+    pub async fn count_token(&self, message: &str) -> Result<u32> {
+        const API_URL: &str = "https://api.anthropic.com/v1/messages/count_tokens";
+        const MAX_TOKENS: u32 = 4096;
+
+        let request = AnthropicRequest {
+            model: self.model.clone(),
+            messages: vec![Message {
+                role: Role::User,
+                content: String::from(message),
+            }],
+            max_tokens: MAX_TOKENS,
+        };
+
+        let response = self
+            .client
+            .post(API_URL)
+            .header("x-api-key", &self.api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&request)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await?;
+            let error_f = format!("API error ({}): {}", status, error_text);
+            return Err(anyhow::anyhow!(error_f));
+        }
+
+        let anthropic_response: AntTokCountResponse = response.json().await?;
+        debug!("Received response: {:?}", anthropic_response);
+
+        Ok(anthropic_response.input_tokens)
+    }
+
 }

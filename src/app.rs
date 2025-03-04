@@ -6,7 +6,7 @@ use tokio::runtime::Runtime;
 use egui::Visuals;
 use std::collections::HashMap;
 
-use crate::api::{input_price_heuristic, AnthropicClient, Message, Role};
+use crate::api::{get_tokens_heur_price, AnthropicClient, Message, Role, TokenType};
 use crate::config::{ Config, Theme};
 use crate::ui;
 use crate::price::{fetch_model_pricing, ModelPricing};
@@ -260,8 +260,8 @@ impl eframe::App for ClauChatApp {
 
                 let mut input_cost_avail: Option<String> = match &self.pricing_data {
                     Some(pricing_data) => {
-                        let input_cost = input_price_heuristic(
-                            &self.input,
+                        let input_cost = get_tokens_heur_price(
+                            &self.input, TokenType::InputToken,
                             pricing_data.get(&self.model).unwrap(),
                         );
                         Some(format!("${:.6}", input_cost))
