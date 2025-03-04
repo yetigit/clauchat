@@ -16,10 +16,13 @@ use app::ClauChatApp;
 //-[] print total cost in realtime
 //-[] animation for response waiting time
 //-[] display code blocks
+//-[] change colors of light theme
 // ___
 //-[] save window rect in config
 //-[] add scroll area for text input
 //-[] ctrl middle mouse for font adjust
+//-[] implement claude's system option, 
+//have it in config/settings
 
 fn main() -> Result<(), eframe::Error> {
     dotenv::dotenv().ok();
