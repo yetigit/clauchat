@@ -38,6 +38,12 @@ struct AnthropicRequest {
     max_tokens: u32,
 }
 
+#[derive(Debug, Serialize)]
+struct AntTokCountRequest {
+    model: String,
+    messages: Vec<Message>,
+}
+
 /// Content block in the anth API response
 #[derive(Debug, Deserialize)]
 struct ContentBlock {
@@ -134,6 +140,7 @@ impl AnthropicClient {
         Ok(success)
     }
 
+    // TODO: possible to use ref for Vec of messages ?
     pub async fn send_message(&self, messages: Vec<Message>) -> Result<String> {
         const API_URL: &str = "https://api.anthropic.com/v1/messages";
         const MAX_TOKENS: u32 = 4096;
@@ -180,21 +187,23 @@ impl AnthropicClient {
 
     pub async fn count_token(&self, message: &str) -> Result<u32> {
 
+        if message.trim().is_empty(){
+            return Ok(0);
+        }
+
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10)) // enough to count ugh ?
             .build()
             .expect("Failed to create HTTP client");
 
         const API_URL: &str = "https://api.anthropic.com/v1/messages/count_tokens";
-        const MAX_TOKENS: u32 = 4096;
 
-        let request = AnthropicRequest {
+        let request = AntTokCountRequest {
             model: self.model.clone(),
             messages: vec![Message {
                 role: Role::User,
                 content: String::from(message),
             }],
-            max_tokens: MAX_TOKENS,
         };
 
         let response = client
@@ -219,7 +228,6 @@ impl AnthropicClient {
         Ok(anthropic_response.input_tokens)
     }
 
-    // TODO: use
     pub async fn get_tokens_price(
         &self,
         message: &str,
