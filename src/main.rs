@@ -20,7 +20,8 @@ use app::ClauChatApp;
 //-[] implement claude's system option, 
 //-[] implement claude temperature setting
 //-[] implement prompt caching
-// ___
+//-[] replies should be on opposite sides,
+// e.g user post is offset to the left, claude answer to the right 
 //-[] save window rect in config
 //-[] add scroll area for text input
 //-[] ctrl middle mouse for font adjust
