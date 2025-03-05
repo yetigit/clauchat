@@ -46,12 +46,12 @@ struct ContentBlock {
     text: String,
 }
 
-/// Message in the anth API response
 #[derive(Debug, Deserialize)]
-struct ResponseMessage {
-    role: String,
-    content: Vec<ContentBlock>,
+struct ResponseUsage {
+    input_tokens: u32,
+    output_tokens: u32,
 }
+
 
 /// Response structure from the anthropic API
 #[derive(Debug, Deserialize)]
@@ -61,6 +61,7 @@ struct AnthropicResponse {
     response_type: String,
     role: String,
     content: Vec<ContentBlock>,
+    usage: ResponseUsage,
 }
 
 #[derive(Debug, Deserialize)]
@@ -110,6 +111,9 @@ impl AnthropicClient {
         }
     }
 
+    // TODO: be precise with error message on this one 
+    // the servers can just be down and this should be the error
+    // not the bad key
     pub async fn is_api_key_valid(api_key: String) -> Result<bool> {
         const API_URL: &str = "https://api.anthropic.com/v1/models";
 
@@ -127,14 +131,6 @@ impl AnthropicClient {
             .await?;
 
         let success = response.status().is_success();
-        debug!(
-            "API key status: {}",
-            if success {
-                "good key"
-            } else {
-                "bad key"
-            }
-        );
         Ok(success)
     }
 
@@ -159,7 +155,8 @@ impl AnthropicClient {
             .send()
             .await?;
 
-        debug!("Request was made to Anthropic API: {:?}", request);
+        // let response_text = response.text().await?;
+        // info!("Full response: {}", response_text);
 
         if !response.status().is_success() {
             let status = response.status();
@@ -177,7 +174,6 @@ impl AnthropicClient {
                 full_content.push_str(&content_block.text);
             }
         }
-        // debug!("Extracted response: {}", full_content);
 
         Ok(full_content)
     }
