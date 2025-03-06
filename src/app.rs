@@ -3,14 +3,19 @@ use egui::Context;
 use log::{debug, info, error };
 use std::sync::{Arc, Mutex, mpsc};
 use tokio::runtime::Runtime;
-use tokio::time::{interval, sleep, Duration};
 use egui::Visuals;
 use std::collections::HashMap;
+use tiktoken_rs::cl100k_base;
 
-use crate::api::{get_tokens_heur_price, AnthropicClient, Message, Role, TokenType};
+use crate::api::{AnthropicClient, Message, Role, TokenType};
 use crate::config::{ Config, Theme};
 use crate::ui;
 use crate::price::{fetch_model_pricing, ModelPricing};
+
+struct PriceEstimateHelper {
+    model_price: ModelPricing,
+    input: String,
+} 
 
 /// application state
 pub struct ClauChatApp {
@@ -111,6 +116,25 @@ impl ClauChatApp {
         self.is_sending = false;
     }
 
+    // TODO: take in account error
+    fn token_count_heuristic(content: &str) -> usize {
+        let bpe = cl100k_base().unwrap();
+        bpe.encode_ordinary(content).len()
+    }
+
+    //  TODO: take in account error
+    fn get_tokens_heur_price(content: &str, toktype: TokenType, model_price :&ModelPricing) -> Option<f64> {
+        let token_count = ClauChatApp::token_count_heuristic(content);
+        match toktype {
+            TokenType::InputToken => {
+                Some(model_price.input_cost_per_million * (token_count as f64 / 1000000.0))
+            }
+            TokenType::OutputToken => {
+                Some(model_price.output_cost_per_million * (token_count as f64 / 1000000.0))
+            }
+        }
+    }
+
     fn send_message(&mut self) {
         if self.input.trim().is_empty() || self.is_sending {
             return;
@@ -175,7 +199,6 @@ impl ClauChatApp {
 
     }
 
-
     fn save_config(&self) {
         if let Err(err) = self.config.save() {
             error!("Failed to save config: {}", err);
@@ -213,47 +236,28 @@ impl eframe::App for ClauChatApp {
             }
         }
 
-        let client = match &self.client {
-            Some(client) => client,
-            None => {
-                error!("Corrupt client");
-                self.error = Some("Corrupt client".to_string());
-                return;
-            }
-        };
-
-        let client = client.clone();
-        let model_price = {
-            let pricing_data = match &self.pricing_data {
-                Some(pricing_data) => Some(pricing_data.clone()),
-                None => None,
-            };
-            // TODO: dont unwrap like that
-            pricing_data.unwrap().get(&self.model).unwrap().clone()
-        };
         let input_clone = self.input.clone();
-        let input_cost_clone = self.input_cost.clone();
+        let input_cost_clone = self.input_cost.clone(); 
+        let model_price = self.pricing_data
+            .as_ref()
+            .and_then(|pricing_data| pricing_data.get(&self.model).cloned())
+            .unwrap();
 
-        self.runtime.spawn(async move {
-            let mut interval = interval(Duration::from_secs(1));
-            loop {
-                interval.tick().await;
-
-                match client
-                    .get_tokens_price(&input_clone, TokenType::InputToken, &model_price)
-                    .await
-                {
-                    Ok(price) => {
-                        let mut input_cost = input_cost_clone.lock().unwrap();
-                        *input_cost = Some(Ok(price));
-                    }
-                    Err(e) => {
-                        let mut input_cost = input_cost_clone.lock().unwrap();
-                        *input_cost = Some(Err(e.to_string()));
-                    }
-                }
+        std::thread::spawn(move || {
+            if let Some(_input_cost) = ClauChatApp::get_tokens_heur_price(&input_clone, TokenType::InputToken, &model_price) {
+                let mut input_cost = input_cost_clone.lock().unwrap();
+                *input_cost = Some(Ok(_input_cost));
             }
         });
+
+        let x = self.input_cost.clone();
+        let y = x.lock().unwrap();
+        let z = (*y).clone();
+        if let Some(response) = z {
+            if let Ok(input_cost) = response {
+                self.ui_state.input_cost_display = Some(input_cost);
+            }
+        };
 
         if let Some(receiver) = &self.response_receiver {
             if let Ok(response) = receiver.try_recv() {
@@ -286,22 +290,8 @@ impl eframe::App for ClauChatApp {
 
                 let mut should_send_message = false;
 
-                let x = self.input_cost.clone();
-                let y = x.lock().unwrap();
-                let z = (*y).clone();
-                let input_cost_avail: Option<String> = match z {
-                    Some(response) => match response {
-                        Ok(input_cost) => Some(format!("${:.6}", input_cost)),
-                        Err(e) => {
-                            error!("Error: {}", e);
-                            None
-                        }
-                    },
-                    None => None,
-                };
-                //
                 ui::render_input_area(ui, &mut self.input, 
-                    input_cost_avail, self.is_sending, || {
+                    &self.ui_state, self.is_sending, || {
                     should_send_message = true;
                 });
                 if should_send_message {

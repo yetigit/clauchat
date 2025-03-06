@@ -84,24 +84,6 @@ pub struct AnthropicClient {
 }
 
 
-fn token_count_heuristic(content: &str) -> usize {
-    let char_count = content.chars().count();
-    (char_count as f64 / 4.0).ceil() as usize
-}
-
-pub fn get_tokens_heur_price(content: &str, toktype: TokenType, model_price: &ModelPricing) -> f64 {
-    let token_count = token_count_heuristic(content);
-    match toktype {
-        TokenType::InputToken => {
-            model_price.input_cost_per_million * (token_count as f64 / 1000000.0)
-        }
-        TokenType::OutputToken => {
-            model_price.output_cost_per_million * (token_count as f64 / 1000000.0)
-        }
-    }
-}
-
-
 impl AnthropicClient {
     pub fn new(api_key: String) -> Self {
         let client = reqwest::Client::builder()

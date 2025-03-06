@@ -5,9 +5,11 @@ use crate::api::{Message, Role};
 use crate::config::{Config, Theme};
 
 // UI states
+#[derive(Clone)]
 pub struct UiState {
     pub settings_open: bool,
     pub api_key_buffer: String,
+    pub input_cost_display: Option<f64>,
 }
 
 impl Default for UiState {
@@ -15,6 +17,7 @@ impl Default for UiState {
         Self {
             settings_open: false,
             api_key_buffer: String::new(),
+            input_cost_display: None,
         }
     }
 }
@@ -146,7 +149,7 @@ pub fn render_chat_area(ui: &mut Ui, messages: &[Message]) {
 pub fn render_input_area(
     ui: &mut Ui,
     input: &mut String,
-    input_cost: Option<String>,
+    ui_state: &UiState,
     is_sending: bool,
     on_send: impl FnOnce(),
 ) {
@@ -172,7 +175,7 @@ pub fn render_input_area(
 
             let text_edit_response = ui.add(text_edit);
 
-            if let Some(_input_cost) = input_cost {
+            if let Some(_input_cost) = ui_state.input_cost_display {
                 let overlay_pos = ui.min_rect().max - egui::vec2(78.0, 48.0);
                 let builder = egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
                     overlay_pos,
@@ -180,7 +183,7 @@ pub fn render_input_area(
                 ));
 
                 ui.allocate_new_ui(builder, |ui| {
-                    let overlay_text = RichText::new(_input_cost)
+                    let overlay_text = RichText::new(format!("${:.6}", _input_cost))
                         .color(Color32::from_rgba_premultiplied(250, 250, 210, 255))
                         .size(14.0);
                     ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {

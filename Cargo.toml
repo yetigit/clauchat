@@ -6,6 +6,7 @@ authors = ["baidhir hidair <justin.hidair@gmail.com>"]
 description = "A minimal chatbot UI for Claude 3.7 Sonnet"
 
 [dependencies]
+tiktoken-rs = "0.5.8" # count tokens 
 # GUI framework
 eframe = "0.31.0"         # Provides a cross-platform egui framework
 egui = "0.31.0"           # Immediate mode GUI library
