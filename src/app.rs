@@ -12,11 +12,6 @@ use crate::config::{ Config, Theme};
 use crate::ui;
 use crate::price::{fetch_model_pricing, ModelPricing};
 
-struct PriceEstimateHelper {
-    model_price: ModelPricing,
-    input: String,
-} 
-
 /// application state
 pub struct ClauChatApp {
     /// user input being typed
@@ -116,21 +111,24 @@ impl ClauChatApp {
         self.is_sending = false;
     }
 
-    // TODO: take in account error
-    fn token_count_heuristic(content: &str) -> usize {
-        let bpe = cl100k_base().unwrap();
-        bpe.encode_ordinary(content).len()
+    fn token_count_heuristic(content: &str) -> Result<usize, String> {
+        let bpe = match cl100k_base() {
+            Ok (bpe)=> bpe,
+            Err(e) => return Err(e.to_string()) 
+        } ; 
+        Ok(bpe.encode_ordinary(content).len())
     }
 
     //  TODO: take in account error
-    fn get_tokens_heur_price(content: &str, toktype: TokenType, model_price :&ModelPricing) -> Option<f64> {
-        let token_count = ClauChatApp::token_count_heuristic(content);
+    fn get_tokens_heur_price(content: &str, toktype: TokenType, model_price :&ModelPricing) -> Result<f64, String> {
+
+        let token_count = ClauChatApp::token_count_heuristic(content)?;
         match toktype {
             TokenType::InputToken => {
-                Some(model_price.input_cost_per_million * (token_count as f64 / 1000000.0))
+                Ok(model_price.input_cost_per_million * (token_count as f64 / 1000000.0))
             }
             TokenType::OutputToken => {
-                Some(model_price.output_cost_per_million * (token_count as f64 / 1000000.0))
+                Ok(model_price.output_cost_per_million * (token_count as f64 / 1000000.0))
             }
         }
     }
@@ -237,18 +235,32 @@ impl eframe::App for ClauChatApp {
         }
 
         let input_clone = self.input.clone();
-        let input_cost_clone = self.input_cost.clone(); 
-        let model_price = self.pricing_data
+        let input_cost_clone = self.input_cost.clone();
+        let model_price: Option<ModelPricing> = self
+            .pricing_data
             .as_ref()
-            .and_then(|pricing_data| pricing_data.get(&self.model).cloned())
-            .unwrap();
+            .and_then(|pricing_data| pricing_data.get(&self.model).cloned());
 
-        std::thread::spawn(move || {
-            if let Some(_input_cost) = ClauChatApp::get_tokens_heur_price(&input_clone, TokenType::InputToken, &model_price) {
-                let mut input_cost = input_cost_clone.lock().unwrap();
-                *input_cost = Some(Ok(_input_cost));
-            }
-        });
+        if let Some(model_price) = model_price {
+            std::thread::spawn(move || {
+                match ClauChatApp::get_tokens_heur_price(
+                    &input_clone,
+                    TokenType::InputToken,
+                    &model_price,
+                ) {
+                    Ok(_input_cost) => {
+                        let mut input_cost = input_cost_clone.lock().unwrap();
+                        *input_cost = Some(Ok(_input_cost));
+                    }
+                    Err(e) => {
+                        debug!("Error: {}", e.to_string());
+                    }
+                };
+            });
+        } else {
+            debug!("No model pricing fetched");
+            self.ui_state.input_cost_display = None;
+        }
 
         let x = self.input_cost.clone();
         let y = x.lock().unwrap();
@@ -304,6 +316,6 @@ impl eframe::App for ClauChatApp {
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         let config_path = Config::config_path().unwrap();
         self.save_config();
-        info!("Configuration saved to {}", config_path.display());
+        // info!("Configuration saved to {}", config_path.display());
     }
 }
