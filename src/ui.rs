@@ -142,6 +142,7 @@ pub fn render_input_area(
     ui_state: &UiState,
     is_sending: bool,
     on_send: impl FnOnce(),
+    on_input_change: impl FnOnce(),
 ) {
     ui.separator();
 
@@ -164,6 +165,9 @@ pub fn render_input_area(
                 });
 
             let text_edit_response = ui.add(text_edit);
+            if text_edit_response.changed() {
+                on_input_change();
+            }
 
             if let Some(_input_cost) = ui_state.input_cost_display {
                 let overlay_pos = ui.min_rect().max - egui::vec2(78.0, 48.0);
