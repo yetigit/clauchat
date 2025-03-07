@@ -8,6 +8,7 @@ use tokio::runtime::Runtime;
 use egui::Visuals;
 use std::collections::HashMap;
 use tiktoken_rs::cl100k_base;
+use std::time::Duration;
 
 use crate::api::{AnthropicClient, Message, Role, TokenType};
 use crate::config::{ Config, Theme};
@@ -54,6 +55,8 @@ pub struct ClauChatApp {
     /// input cost estimate display
     input_cost: Arc<Mutex<Option<Result<f64, String>>>>,
 
+    input_next_send_t: std::time::Instant,
+
 }
 
 impl ClauChatApp {
@@ -98,7 +101,22 @@ impl ClauChatApp {
             model: MODEL.to_string(),
             pricing_data: price_data,
             input_cost,
+            input_next_send_t: std::time::Instant::now(),
         }
+    }
+
+    fn send_input(&mut self) -> Result<(), String> {
+        const SEND_INTERVAL: Duration = Duration::from_millis(300);
+        let time_now = std::time::Instant::now();
+        if time_now >= self.input_next_send_t {
+            debug!("Sending input to thread");
+            if let Err(e) = self.input_sender.as_ref().unwrap().send(self.input.clone()) {
+                error!("Error sending input to processing thread: {}", e);
+            }
+            self.input_next_send_t = time_now + SEND_INTERVAL;
+        }
+
+        Ok(())
     }
 
     pub fn init(&mut self) -> Result<(), String> {
@@ -120,6 +138,7 @@ impl ClauChatApp {
             .take()
             .expect("Input receiver already taken");
 
+        self.input_next_send_t = std::time::Instant::now();
         std::thread::spawn(move || {
             loop {
                 if let Ok(input) = t_receiver.recv() {
@@ -287,9 +306,7 @@ impl eframe::App for ClauChatApp {
             }
         }
 
-        if let Err(e) = self.input_sender.as_ref().unwrap().send(self.input.clone()) {
-            error!("Error sending input to processing thread: {}", e); 
-        }
+        self.send_input().unwrap();
 
         if let Some(Ok(input_cost)) = &*self.input_cost.lock().unwrap() {
             self.ui_state.input_cost_display = Some(*input_cost);

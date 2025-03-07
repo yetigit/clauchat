@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use log::{debug, error, info};
-use reqwest;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
