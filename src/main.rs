@@ -12,7 +12,6 @@ use app::ClauChatApp;
 
 //TODO:
 //-[x] estimate cost of input (display in real time if possible)
-//-[] estimate cost using anth api
 //-[] print total cost in realtime
 //-[] animation for response waiting time
 //-[] display code blocks
@@ -53,8 +52,9 @@ fn main() -> Result<(), eframe::Error> {
         "ClauChat - Claude 3.7 Sonnet",
         options,
         Box::new(|cc| {
-            // Create the application state
-            Ok(Box::new(ClauChatApp::new(cc)))
+            let mut clauchat_app = ClauChatApp::new(cc);
+            clauchat_app.init()?;
+            Ok(Box::new(clauchat_app))
         }),
     )
 }

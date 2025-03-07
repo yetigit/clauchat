@@ -5,21 +5,11 @@ use crate::api::{Message, Role};
 use crate::config::{Config, Theme};
 
 // UI states
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct UiState {
     pub settings_open: bool,
     pub api_key_buffer: String,
     pub input_cost_display: Option<f64>,
-}
-
-impl Default for UiState {
-    fn default() -> Self {
-        Self {
-            settings_open: false,
-            api_key_buffer: String::new(),
-            input_cost_display: None,
-        }
-    }
 }
 
 pub fn render_header(
