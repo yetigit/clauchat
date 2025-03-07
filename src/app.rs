@@ -7,9 +7,9 @@ use mpsc::Sender;
 use tokio::runtime::Runtime;
 use egui::Visuals;
 use std::collections::HashMap;
-use tiktoken_rs::cl100k_base;
+use tiktoken_rs::cl100k_base; /// Use ChatGPT tokenizer
 
-use crate::api::{AnthropicClient, Message, Role, TokenType};
+use crate::api::{AnthropicClient, Message, Role, TokenType, ResponseUsage, ExtractedResponse};
 use crate::config::{ Config, Theme};
 use crate::ui;
 use crate::price::{fetch_model_pricing, ModelPricing};
@@ -38,7 +38,7 @@ pub struct ClauChatApp {
     ui_state: ui::UiState,
 
     /// channel for api response thread transit 
-    response_receiver: Option<Receiver<Result<String, String>>>,
+    response_receiver: Option<Receiver<Result<ExtractedResponse, String>>>,
     input_sender: Option<Sender<String>>,
     input_receiver: Option<Receiver<String>>,
 
@@ -53,6 +53,7 @@ pub struct ClauChatApp {
 
     /// input cost estimate display
     input_cost: Arc<Mutex<Option<Result<f64, String>>>>,
+
 
 }
 
@@ -170,13 +171,21 @@ impl ClauChatApp {
         Ok(())
     }
 
-    fn handle_api_response(&mut self, response: Result<String, String>) {
+    fn usage_as_cost(&self, usage: &ResponseUsage) -> Result<f64, String> {
+        let model_price = self.pricing_data.as_ref().unwrap().get(&self.model).unwrap();
+        let total = model_price.input_cost_per_million * (usage.input_tokens as f64 / 1000000.0) +
+        model_price.output_cost_per_million * (usage.output_tokens as f64 / 1000000.0);
+        Ok(total)
+    }
+
+    fn handle_api_response(&mut self, response: Result<ExtractedResponse, String>) {
         match response {
-            Ok(content) => {
+            Ok(response) => {
                 let assistant_message = Message {
                     role: Role::Assistant,
-                    content,
+                    content: response.content,
                 };
+                self.ui_state.total_cost += self.usage_as_cost(&response.usage).unwrap();
                 self.messages.push(assistant_message);
             }
             Err(err) => {
@@ -185,8 +194,11 @@ impl ClauChatApp {
             }
         }
         self.is_sending = false;
+        info!("Total cost: {}", self.ui_state.total_cost);
     }
 
+    /// Counting tokens using ChatGPT tokenizer, 
+    /// it matches enough when the Anthropic pricing is applied
     fn token_count_heuristic(content: &str) -> Result<usize, String> {
         match cl100k_base() {
             Ok (bpe)=> {

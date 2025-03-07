@@ -5,11 +5,24 @@ use crate::api::{Message, Role};
 use crate::config::{Config, Theme};
 
 // UI states
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct UiState {
     pub settings_open: bool,
     pub api_key_buffer: String,
     pub input_cost_display: Option<f64>,
+    pub total_cost: f64,
+}
+
+impl Default for UiState {
+    fn default() -> Self {
+        Self{
+            settings_open: false,
+            api_key_buffer: String::new(),
+            input_cost_display: None,
+            total_cost: 0.0,
+        }
+    }
+
 }
 
 pub fn render_header(
@@ -169,10 +182,11 @@ pub fn render_input_area(
                 on_input_change();
             }
 
+            // TODO: tooltip for these
             if let Some(_input_cost) = ui_state.input_cost_display {
-                let overlay_pos = ui.min_rect().max - egui::vec2(78.0, 48.0);
+                let overlay_pos = ui.min_rect().max - egui::vec2(6.0, 8.0);
                 let builder = egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
-                    overlay_pos,
+                    overlay_pos - egui::vec2(70.0, 40.0),
                     egui::vec2(72.0, 40.0),
                 ));
 
@@ -186,6 +200,22 @@ pub fn render_input_area(
                     });
                 });
             }
+
+            let overlay_pos = ui.min_rect().max - egui::vec2(6.0, 2.0);
+            let builder = egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
+                overlay_pos - egui::vec2(70.0, 70.0),
+                egui::vec2(72.0, 40.0),
+            ));
+
+            ui.allocate_new_ui(builder, |ui| {
+                let overlay_text = RichText::new(format!("${:.6}", ui_state.total_cost))
+                    .color(Color32::from_rgba_premultiplied(255, 0, 0, 255))
+                    .size(14.0);
+                ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {
+                    // debug!("make price overlay");
+                    ui.label(overlay_text);
+                });
+            });
 
             // Handle Enter key to send (but allow Shift+Enter for new lines)
             let pressed_enter = text_edit_response.has_focus()

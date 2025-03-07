@@ -53,9 +53,9 @@ struct ContentBlock {
 }
 
 #[derive(Debug, Deserialize)]
-struct ResponseUsage {
-    input_tokens: u32,
-    output_tokens: u32,
+pub struct ResponseUsage {
+    pub input_tokens: u32,
+    pub output_tokens: u32,
 }
 
 
@@ -68,6 +68,12 @@ struct AnthropicResponse {
     role: String,
     content: Vec<ContentBlock>,
     usage: ResponseUsage,
+}
+
+#[derive(Debug)]
+pub struct ExtractedResponse {
+    pub content: String,
+    pub usage: ResponseUsage,
 }
 
 #[derive(Debug, Deserialize)]
@@ -123,7 +129,7 @@ impl AnthropicClient {
     }
 
     // TODO: possible to use ref for Vec of messages ?
-    pub async fn send_message(&self, messages: Vec<Message>) -> Result<String> {
+    pub async fn send_message(&self, messages: Vec<Message>) -> Result<ExtractedResponse> {
         const API_URL: &str = "https://api.anthropic.com/v1/messages";
         const MAX_TOKENS: u32 = 4096;
 
@@ -164,9 +170,14 @@ impl AnthropicClient {
             }
         }
 
-        Ok(full_content)
+        Ok(
+            ExtractedResponse { 
+                content: full_content, 
+                usage: anthropic_response.usage,
+        })
     }
 
+    #[deprecated]
     pub async fn count_token(&self, message: &str) -> Result<u32> {
 
         if message.trim().is_empty(){
@@ -210,6 +221,7 @@ impl AnthropicClient {
         Ok(anthropic_response.input_tokens)
     }
 
+    #[deprecated]
     pub async fn get_tokens_price(
         &self,
         message: &str,
