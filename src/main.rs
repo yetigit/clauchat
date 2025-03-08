@@ -5,6 +5,7 @@ use egui::ViewportBuilder;
 mod app;
 mod api;
 mod config;
+mod chat_render;
 mod ui;
 mod price;
 
@@ -12,7 +13,7 @@ use app::ClauChatApp;
 
 //TODO:
 //-[x] estimate cost of input (display in real time if possible)
-//-[] print total cost in realtime
+//-[x] print total cost in realtime
 //-[] animation for response waiting time
 //-[] display code blocks
 //-[] change colors of light theme

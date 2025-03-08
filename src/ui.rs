@@ -3,6 +3,7 @@ use log::{debug, error, info};
 
 use crate::api::{Message, Role};
 use crate::config::{Config, Theme};
+use crate::chat_render::ChatRenderer;
 
 // UI states
 #[derive(Clone)]
@@ -133,7 +134,8 @@ pub fn render_message(ui: &mut Ui, message: &Message) {
         ui.label(RichText::new(format!("{}: ", prefix)).color(color).strong());
     });
 
-    ui.label(RichText::new(&message.content).color(color));
+    ChatRenderer::render_message_content(ui, &message.content);
+    // ui.label(RichText::new(&message.content).color(color));
     ui.add_space(8.0);
 }
 
