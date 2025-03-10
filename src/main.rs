@@ -16,13 +16,13 @@ use app::ClauChatApp;
 //-[x] estimate cost of input (display in real time if possible)
 //-[x] print total cost in realtime
 //-[] animation for response waiting time
-//-[] display code blocks
+//-[x] display code blocks
 //-[] change colors of light theme
 //-[] implement claude's system option, 
 //-[] implement claude temperature setting
 //-[] implement prompt caching
 //-[] replies should be on opposite sides,
-// e.g user post is offset to the left, claude answer to the right 
+// e.g user post is offset to the right, claude answer to the left
 //-[] save window rect in config
 //-[] add scroll area for text input
 //-[] ctrl middle mouse for font adjust

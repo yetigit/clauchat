@@ -211,7 +211,7 @@ pub fn render_input_area(
 
             ui.allocate_new_ui(builder, |ui| {
                 let overlay_text = RichText::new(format!("${:.6}", ui_state.total_cost))
-                    .color(Color32::from_rgba_premultiplied(255, 0, 0, 255))
+                    .color(Color32::from_rgba_premultiplied(255, 191, 145, 255))
                     .size(14.0);
                 ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {
                     // debug!("make price overlay");
