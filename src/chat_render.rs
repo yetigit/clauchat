@@ -2,10 +2,65 @@ use eframe::egui::{self, Color32, RichText, TextFormat, Ui};
 use log::{debug, info, error};
 use std::ops::Range;
 
+use crate::syntax_lit::SyntaxHighlighter;
+
 /// Support for rendering different types of message content
 pub struct ChatRenderer;
 
 impl ChatRenderer {
+
+    /// Render highlighted code into a UI
+    fn render_highlighted_code(
+        ui: &mut egui::Ui,
+        code: &str,
+        language: Option<&str>,
+        is_dark_mode: bool,
+    ) {
+        let highlighted = SyntaxHighlighter::highlight_code(code, language, is_dark_mode);
+        
+        // Determine background color based on theme
+        let bg_color = if is_dark_mode {
+            Color32::from_rgb(40, 44, 52)
+        } else {
+            Color32::from_rgb(240, 240, 240)
+        };
+        
+        // Create a frame for the code block
+        let code_frame = egui::Frame::none()
+            .fill(bg_color)
+            .stroke(egui::Stroke::new(1.0, Color32::from_gray(100)))
+            .inner_margin(egui::epaint::Marginf::same(8.0))
+            .corner_radius(4.0)
+            ;
+            
+        code_frame.show(ui, |ui| {
+            // Show language if available
+            if let Some(lang) = language {
+                ui.label(
+                    RichText::new(lang)
+                        .color(if is_dark_mode { Color32::LIGHT_GRAY } else { Color32::DARK_GRAY })
+                        .small()
+                );
+                ui.separator();
+            }
+            
+            // Render the highlighted code
+            let mut job = egui::text::LayoutJob::default();
+            
+            for (text, color) in highlighted {
+                let text_format = TextFormat {
+                    font_id: egui::FontId::monospace(14.0),
+                    color,
+                    ..Default::default()
+                };
+                
+                job.append(&text, 0.0, text_format);
+            }
+            
+            ui.label(job);
+        });
+    }
+
     /// Renders chat message content with special formatting for code blocks
     pub fn render_message_content(ui: &mut Ui, content: &str) {
         let mut last_end = 0;
@@ -18,8 +73,8 @@ impl ChatRenderer {
             }
             
             // Render code block with special formatting
-            Self::render_code_block(ui, &content[block_range.clone()], language);
-            
+            let code_content = ChatRenderer::extract_code(&content[block_range.clone()], language.as_deref());
+            ChatRenderer::render_highlighted_code(ui, &code_content, language.as_deref(), true);
             last_end = block_range.end;
         }
         
@@ -60,9 +115,9 @@ impl ChatRenderer {
         blocks
     }
 
-    fn extract_code(text: &str, lang : &str) -> String {
+    fn extract_code(text: &str, lang : Option<&str>) -> String {
         // Find the start marker position
-        let start_marker = format!("```{}", lang);
+        let start_marker = format!("```{}", lang.unwrap_or(""));
         let start_pos = match text.find(&start_marker) {
             Some(pos) => pos + start_marker.len(),
             None => return String::new(), // Start marker not found
@@ -79,31 +134,4 @@ impl ChatRenderer {
         text[start_pos..end_pos].trim().to_string()
     }
     
-    /// Render a code block with special formatting
-    fn render_code_block(ui: &mut Ui, code_text: &str, language: Option<String>) {
-        let code_frame = egui::Frame::new()
-            .fill(Color32::from_rgb(40, 44, 52))
-            .stroke(egui::Stroke::new(1.0, Color32::from_gray(100)))
-            .inner_margin(egui::epaint::Marginf::same(8.0))
-            .corner_radius(4.0);
-            
-        let lang = language.clone().unwrap_or(String::new());
-        code_frame.show(ui, |ui| {
-            // Display language if available
-            if !lang.is_empty() {
-                ui.label(RichText::new(&lang).color(Color32::from_rgb(220, 220, 170)).small());
-                ui.separator();
-            }
-            // Display code content with monospace font
-            // debug!("Code text: {}", code_text);
-            let code_content = ChatRenderer::extract_code(code_text, &lang);
-                
-            ui.add(egui::TextEdit::multiline(&mut code_content.to_string())
-                .font(egui::TextStyle::Monospace)
-                .text_color(Color32::from_rgb(220, 220, 220))
-                .desired_width(f32::INFINITY)
-                .frame(false)
-                .interactive(false));
-        });
-    }
 }

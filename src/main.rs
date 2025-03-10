@@ -2,12 +2,13 @@ use eframe::{egui, NativeOptions};
 use log::info;
 use egui::ViewportBuilder;
 
-mod app;
 mod api;
 mod config;
+mod syntax_lit;
 mod chat_render;
 mod ui;
 mod price;
+mod app;
 
 use app::ClauChatApp;
 

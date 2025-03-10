@@ -10,6 +10,8 @@ tiktoken-rs = "0.5.8" # count tokens
 # GUI framework
 eframe = "0.31.0"         # Provides a cross-platform egui framework
 egui = "0.31.0"           # Immediate mode GUI library
+# Syntax highlighting for code blocks
+syntect = "5.2.0" 
 
 # Networking
 reqwest = { version = "0.11", features = ["json"] }  # HTTP client
