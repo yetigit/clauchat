@@ -66,14 +66,13 @@ impl ClauChatApp {
 
         let config = Config::load().unwrap_or_default();
 
-        // TODO: pass it to anthropic client 
         const MODEL: &str = "claude-3-7-sonnet-20250219";
         let price_data = runtime.block_on(async {
             fetch_model_pricing(Some(MODEL)).await
         }).unwrap();
 
         let client = if !config.api_key.is_empty() {
-            Some(AnthropicClient::new(config.api_key.clone()))
+            Some(AnthropicClient::new(MODEL, config.api_key.clone()))
         } else {
             None
         };
@@ -211,6 +210,7 @@ impl ClauChatApp {
     fn get_tokens_heur_price(content: &str, toktype: TokenType, model_price :&ModelPricing) -> Result<f64, String> {
 
         let token_count = ClauChatApp::token_count_heuristic(content)?;
+        debug!("Token count: {}", token_count);
         match toktype {
             TokenType::InputToken => {
                 Ok(model_price.input_cost_per_million * (token_count as f64 / 1000000.0))
@@ -294,7 +294,7 @@ impl ClauChatApp {
     fn update_api_key(&mut self, new_key: String) {
         self.config.api_key = new_key;
         if !self.config.api_key.is_empty() {
-            self.client = Some(AnthropicClient::new(self.config.api_key.clone()));
+            self.client = Some(AnthropicClient::new(&self.model, self.config.api_key.clone()));
             self.error = None;
         } else {
             self.client = None;

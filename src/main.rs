@@ -50,8 +50,7 @@ fn main() -> Result<(), eframe::Error> {
     };
 
     eframe::run_native(
-        // TODO: should take that from the model member variable of some struct
-        "ClauChat - Claude 3.7 Sonnet",
+        "ClauChat",
         options,
         Box::new(|cc| {
             let mut clauchat_app = ClauChatApp::new(cc);

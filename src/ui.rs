@@ -33,7 +33,7 @@ pub fn render_header(
     on_api_key_change: impl FnOnce(String),
 ) {
     ui.horizontal(|ui| {
-        ui.heading("ClauChat");
+        // ui.heading("ClauChat");
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if ui.button("Settings").clicked() {
                 ui_state.settings_open = !ui_state.settings_open;

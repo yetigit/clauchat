@@ -91,7 +91,7 @@ pub struct AnthropicClient {
 
 
 impl AnthropicClient {
-    pub fn new(api_key: String) -> Self {
+    pub fn new(model: &str, api_key: String) -> Self {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30)) // timeout request in 30 sec
             .build()
@@ -100,14 +100,10 @@ impl AnthropicClient {
         Self {
             api_key,
             client: Arc::new(client),
-            // TODO: pass it as argument to ::new() instead
-            model: "claude-3-7-sonnet-20250219".to_string(),
+            model: model.to_string()
         }
     }
 
-    // TODO: be precise with error message on this one 
-    // the servers can just be down and this should be the error
-    // not the bad key
     pub async fn is_api_key_valid(api_key: String) -> Result<bool> {
         const API_URL: &str = "https://api.anthropic.com/v1/models";
 
