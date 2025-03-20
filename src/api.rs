@@ -258,8 +258,8 @@ impl AnthropicClient {
     pub async fn send_message_streaming(
         &self,
         messages: Vec<Message>,
-    ) -> Result<impl futures_util::Stream<Item = Result<StreamingBuffer>>> {
-        use futures_util::stream::{self, StreamExt};
+    ) -> Result<futures_util::stream::BoxStream<'static, Result<StreamingBuffer>>> {
+        use futures_util::stream::{self, StreamExt, TryStreamExt};
         use tokio::io::{AsyncBufReadExt, BufReader};
         use tokio_stream::wrappers::LinesStream;
 
@@ -297,48 +297,53 @@ impl AnthropicClient {
 
         let lines_stream = LinesStream::new(reader.lines());
 
-        let event_stream = lines_stream.filter_map(|line_result| async move {
-            let line = match line_result {
-                Ok(line) => line,
-                Err(e) => return Some(Err(anyhow::anyhow!("Error reading stream line {}", e))),
-            };
+        let event_stream = lines_stream
+            .filter_map(|line_result| async move {
+                let line = match line_result {
+                    Ok(line) => line,
+                    Err(e) => return Some(Err(anyhow::anyhow!("Error reading stream line {}", e))),
+                };
 
-            if line.is_empty() {
-                return None;
-            }
-
-            if line.starts_with("event: ") {
-                // TODO: manage the event type
-                let _ = line.strip_prefix("event: ").unwrap_or_default();
-                None
-            } else if line.starts_with("data: ") {
-                let data = line.strip_prefix("data: ").unwrap_or_default();
-
-                match serde_json::from_str::<StreamEvent>(data) {
-                    Ok(StreamEvent::ContentBlockDelta { delta, .. }) => {
-                        if delta.delta_type == "text_delta" {
-                            return Some(Ok(StreamingBuffer {
-                                content: delta.text,
-                                is_complete: false,
-                            }));
-                        } else {
-                            return None;
-                        }
-                    }
-                    Ok(StreamEvent::MessageStop) => {
-                        return Some(Ok(StreamingBuffer {
-                            content: String::new(),
-                            is_complete: true,
-                        }));
-                    }
-                    _ => {
-                        return None;
-                    } // TODO: what other events ?
+                if line.is_empty() {
+                    return None;
                 }
-            } else {
-                return None;
-            }
-        });
+
+                if line.starts_with("event: ") {
+                    // TODO: manage the event type
+                    let _ = line.strip_prefix("event: ").unwrap_or_default();
+                    None
+                } else if line.starts_with("data: ") {
+                    let data = line.strip_prefix("data: ").unwrap_or_default();
+
+                    match serde_json::from_str::<StreamEvent>(data) {
+                        Ok(StreamEvent::Error { error }) => {
+                            return Some(Err(anyhow::anyhow!("Error event: {}", error.message)));
+                        }
+                        Ok(StreamEvent::ContentBlockDelta { delta, .. }) => {
+                            if delta.delta_type == "text_delta" {
+                                return Some(Ok(StreamingBuffer {
+                                    content: delta.text,
+                                    is_complete: false,
+                                }));
+                            } else {
+                                return None;
+                            }
+                        }
+                        Ok(StreamEvent::MessageStop) => {
+                            return Some(Ok(StreamingBuffer {
+                                content: String::new(),
+                                is_complete: true,
+                            }));
+                        }
+                        _ => {
+                            return None;
+                        } // TODO: what other events ?
+                    }
+                } else {
+                    return None;
+                }
+            })
+            .boxed();
 
         Ok(event_stream)
     }

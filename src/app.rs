@@ -1,9 +1,11 @@
+use futures_util::StreamExt;
 use eframe::{egui, CreationContext};
 use egui::Context;
 use log::{debug, info, error };
 use std::sync::{Arc, Mutex, mpsc};
 use mpsc::Receiver;
 use mpsc::Sender;
+use tokio::sync::mpsc as tokio_mpsc;
 use tokio::runtime::Runtime;
 use egui::Visuals;
 use std::collections::HashMap;
@@ -39,6 +41,7 @@ pub struct ClauChatApp {
 
     /// channel for api response thread transit 
     response_receiver: Option<Receiver<Result<ExtractedResponse, String>>>,
+    stream_receiver: Option<tokio_mpsc::Receiver<String>>,
     input_sender: Option<Sender<String>>,
     input_receiver: Option<Receiver<String>>,
 
@@ -92,6 +95,7 @@ impl ClauChatApp {
             client,
             ui_state: ui::UiState::default(),
             response_receiver: None,
+            stream_receiver: None,
             input_sender: None,
             input_receiver: None,
             error: None,
@@ -236,6 +240,8 @@ impl ClauChatApp {
         };
 
         let api_key_clone = self.config.api_key.clone();
+        // TODO: why do I check if it's a good key, won't the request fail with an appropriate
+        // message ?
         let good_key = self.runtime.block_on(async move {
             AnthropicClient::is_api_key_valid(api_key_clone)
                 .await
@@ -268,19 +274,56 @@ impl ClauChatApp {
         let client = client.clone();
         let messages = self.messages.clone();
 
-        let (tx, rx) = mpsc::channel();
-        self.response_receiver = Some(rx);
+        let (tx, rx) = tokio_mpsc::channel::<String>(100);
+        self.stream_receiver = Some(rx);
+
+        // message we are going to dump the string into
+        self.messages.push(Message {
+            role: Role::Assistant,
+            content: String::new(),
+        });
+
         self.runtime.spawn(async move {
-            match client.send_message(messages).await {
-                Ok(response) => {
-                    debug!("Got some response");
-                    let _ = tx.send(Ok(response));
+            match client.send_message_streaming(messages).await {
+                Ok(mut stream) => {
+                    let mut full_content = String::new();
+
+                    while let Some(chunk_result) = stream.next().await {
+                        match chunk_result {
+                            Ok(buffer) => {
+                                full_content.push_str(&buffer.content);
+                                let _ = tx.send(full_content.clone()).await;
+                                if buffer.is_complete {
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                let _ = tx.send(format!("Err\u{274}r: {}", e)).await;
+                                break;
+                            }
+                        }
+                    }
                 }
-                Err(err) => {
-                    let _ = tx.send(Err(err.to_string()));
+                Err(e) => {
+                    let _ = tx.send(format!("Err\u{274}r: {}", e)).await;
                 }
             }
         });
+
+
+        // let (tx, rx) = mpsc::channel();
+        // self.response_receiver = Some(rx);
+        // self.runtime.spawn(async move {
+        //     match client.send_message(messages).await {
+        //         Ok(response) => {
+        //             debug!("Got some response");
+        //             let _ = tx.send(Ok(response));
+        //         }
+        //         Err(err) => {
+        //             let _ = tx.send(Err(err.to_string()));
+        //         }
+        //     }
+        // });
 
 
     }
@@ -325,6 +368,20 @@ impl eframe::App for ClauChatApp {
 
         if let Some(Ok(input_cost)) = &*self.input_cost.lock().unwrap() {
             self.ui_state.input_cost_display = Some(*input_cost);
+        }
+
+        if let Some(receiver) = &mut self.stream_receiver {
+            if let Ok(content) = receiver.try_recv() {
+                if content.contains("Err\u{274}r:") {
+                    error!("Failed to get valid response: {}", content);
+                    self.error = Some(content);
+                } else if let Some(last_message) = self.messages.last_mut() {
+                    if last_message.role == Role::Assistant {
+                        last_message.content = content;
+                        ctx.request_repaint(); // Request immediate repaint to show update
+                    }
+                }
+            }
         }
 
         if let Some(receiver) = &self.response_receiver {
