@@ -222,7 +222,6 @@ impl AnthropicClient {
         Ok(success)
     }
 
-    // TODO: possible to use ref for Vec of messages ?
     pub async fn send_message(&self, messages: Vec<Message>) -> Result<ExtractedResponse> {
         const API_URL: &str = "https://api.anthropic.com/v1/messages";
         const MAX_TOKENS: u32 = 4096;

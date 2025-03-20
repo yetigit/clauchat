@@ -186,11 +186,12 @@ impl ClauChatApp {
 
     fn handle_stream_response(&mut self, content_delta: AppMessageDelta) {
         if content_delta.content.starts_with(STREAM_ERROR_TOKEN) {
-            error!("Failed to get valid response: {}", content_delta.content);
+            error!("{}", content_delta.content);
             self.error = Some(content_delta.content);
 
+            // Error could happen in the middle of streaming
             if let Some(usage) = &content_delta.usage {
-                debug!("There is some usage: {:?}", usage);
+                error!("There is some usage: {:?}", usage);
                 self.ui_state.total_cost += self.usage_as_cost(usage).unwrap();
             }
         } else if let Some(last_message) = self.messages.last_mut() {
@@ -201,7 +202,6 @@ impl ClauChatApp {
                     debug!("There is some usage: {:?}", usage);
                     self.ui_state.total_cost += self.usage_as_cost(usage).unwrap();
                 }
-                // ctx.request_repaint(); // Request immediate repaint to show update
             }
         }
         if content_delta.is_complete {
@@ -267,27 +267,6 @@ impl ClauChatApp {
                 return;
             }
         };
-
-        let api_key_clone = self.config.api_key.clone();
-        // TODO: why do I check if it's a good key, won't the request fail with an appropriate
-        // message ?
-        let good_key = self.runtime.block_on(async move {
-            AnthropicClient::is_api_key_valid(api_key_clone)
-                .await
-                .unwrap_or_else(|e| {
-                    error!("API key validation request failed: {}", e);
-                    false
-                })
-        });
-
-        if !good_key {
-            error!("Bad API key, request process canceled");
-            self.client = None;
-            self.error = Some("Bad API key, request process canceled".to_string());
-            return;
-        }else {
-            info!("Good API key");
-        }
 
         let user_message = Message {
             role: Role::User,
@@ -408,6 +387,7 @@ impl eframe::App for ClauChatApp {
         if let Some(receiver) = &mut self.stream_receiver {
             if let Ok(content_delta) = receiver.try_recv() {
                 self.handle_stream_response(content_delta);
+                ctx.request_repaint(); // repaint ?
             }
         }
 
