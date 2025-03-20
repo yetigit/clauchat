@@ -42,7 +42,6 @@ pub struct ClauChatApp {
     ui_state: ui::UiState,
 
     /// channel for api response thread transit 
-    response_receiver: Option<Receiver<Result<ExtractedResponse, String>>>,
     stream_receiver: Option<tokio_mpsc::Receiver<AppMessageDelta>>,
     input_sender: Option<Sender<String>>,
     input_receiver: Option<Receiver<String>>,
@@ -97,7 +96,6 @@ impl ClauChatApp {
             runtime,
             client,
             ui_state: ui::UiState::default(),
-            response_receiver: None,
             stream_receiver: None,
             input_sender: None,
             input_receiver: None,

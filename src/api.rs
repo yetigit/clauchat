@@ -325,7 +325,6 @@ impl AnthropicClient {
                 }
 
                 if line.starts_with("event: ") {
-                    // TODO: manage the event type
                     let _ = line.strip_prefix("event: ").unwrap_or_default();
                     None
                 } else if line.starts_with("data: ") {
@@ -374,7 +373,7 @@ impl AnthropicClient {
                         }
                         _ => {
                             return None;
-                        } // TODO: what other events ?
+                        }
                     }
                 } else {
                     return None;
