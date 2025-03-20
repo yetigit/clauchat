@@ -13,10 +13,7 @@ mod app;
 use app::ClauChatApp;
 
 //TODO:
-//-[x] estimate cost of input (display in real time if possible)
-//-[x] print total cost in realtime
-//-[] animation for response waiting time
-//-[x] display code blocks
+//-[] add scroll area for text input
 //-[] change colors of light theme
 //-[] implement claude's system option, 
 //-[] implement claude temperature setting
@@ -24,9 +21,6 @@ use app::ClauChatApp;
 //-[] replies should be on opposite sides,
 // e.g user post is offset to the right, claude answer to the left
 //-[] save window rect in config
-//-[] add scroll area for text input
-//-[] ctrl middle mouse for font adjust
-//have it in config/settings
 
 fn main() -> Result<(), eframe::Error> {
     dotenv::dotenv().ok();

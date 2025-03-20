@@ -45,6 +45,21 @@ struct AnthropicRequest {
 /// --- Streaming --- ///
 
 #[derive(Debug, Deserialize)]
+pub struct InputUsage {
+    input_tokens: u32,
+}
+#[derive(Debug, Deserialize)]
+pub struct OutputUsage {
+    output_tokens: u32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ResponseUsage {
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum StreamEvent {
     MessageStart {
@@ -67,7 +82,7 @@ pub enum StreamEvent {
 
     MessageDelta {
         delta: MessageDelta,
-        usage: Option<ResponseUsage>,
+        usage: OutputUsage,
     },
 
     MessageStop,
@@ -109,6 +124,7 @@ pub struct StreamError {
 
 pub struct StreamingBuffer {
     pub content: String,
+    pub usage: Option<ResponseUsage>,
     pub is_complete: bool,
 }
 
@@ -137,12 +153,6 @@ struct ContentBlock {
     text: String,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct ResponseUsage {
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-}
-
 
 /// Response structure from the anthropic API
 #[derive(Debug, Deserialize)]
@@ -159,6 +169,13 @@ struct AnthropicResponse {
 pub struct ExtractedResponse {
     pub content: String,
     pub usage: ResponseUsage,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct AppMessageDelta {
+    pub content: String,
+    pub usage: Option<ResponseUsage>,
+    pub is_complete: bool,
 }
 
 
@@ -316,6 +333,14 @@ impl AnthropicClient {
                     let data = line.strip_prefix("data: ").unwrap_or_default();
 
                     match serde_json::from_str::<StreamEvent>(data) {
+                        Ok(StreamEvent::MessageStart {message}) => {
+                            // debug!("Input usage: {:?}", message.usage);
+                            return Some(Ok(StreamingBuffer {
+                                content: String::new(),
+                                usage: message.usage,
+                                is_complete: false,
+                            }));
+                        }
                         Ok(StreamEvent::Error { error }) => {
                             return Some(Err(anyhow::anyhow!("Error event: {}", error.message)));
                         }
@@ -323,15 +348,28 @@ impl AnthropicClient {
                             if delta.delta_type == "text_delta" {
                                 return Some(Ok(StreamingBuffer {
                                     content: delta.text,
+                                    usage: None,
                                     is_complete: false,
                                 }));
                             } else {
                                 return None;
                             }
                         }
+                        Ok(StreamEvent::MessageDelta { usage, ..}) => {
+                            // debug!("Output usage: {:?}", usage);
+                            return Some(Ok(StreamingBuffer {
+                                content: String::new(),
+                                usage: Some(ResponseUsage {
+                                    input_tokens: 0,
+                                    output_tokens: usage.output_tokens,
+                                }),
+                                is_complete: false,
+                            }));
+                        }
                         Ok(StreamEvent::MessageStop) => {
                             return Some(Ok(StreamingBuffer {
                                 content: String::new(),
+                                usage: None,
                                 is_complete: true,
                             }));
                         }

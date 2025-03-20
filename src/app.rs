@@ -11,10 +11,12 @@ use egui::Visuals;
 use std::collections::HashMap;
 use tiktoken_rs::cl100k_base; /// Use ChatGPT tokenizer
 
-use crate::api::{AnthropicClient, Message, Role, TokenType, ResponseUsage, ExtractedResponse};
+use crate::api::{AnthropicClient, AppMessageDelta, Message, Role, TokenType, ResponseUsage, ExtractedResponse};
 use crate::config::{ Config, Theme};
 use crate::ui;
 use crate::price::{fetch_model_pricing, ModelPricing};
+
+const STREAM_ERROR_TOKEN: &str = "Err\u{274}r:";
 
 /// application state
 pub struct ClauChatApp {
@@ -41,7 +43,7 @@ pub struct ClauChatApp {
 
     /// channel for api response thread transit 
     response_receiver: Option<Receiver<Result<ExtractedResponse, String>>>,
-    stream_receiver: Option<tokio_mpsc::Receiver<String>>,
+    stream_receiver: Option<tokio_mpsc::Receiver<AppMessageDelta>>,
     input_sender: Option<Sender<String>>,
     input_receiver: Option<Receiver<String>>,
 
@@ -59,6 +61,7 @@ pub struct ClauChatApp {
 
 
 }
+
 
 impl ClauChatApp {
     pub fn new(cc: &CreationContext) -> Self {
@@ -181,6 +184,32 @@ impl ClauChatApp {
         Ok(total)
     }
 
+    fn handle_stream_response(&mut self, content_delta: AppMessageDelta) {
+        if content_delta.content.starts_with(STREAM_ERROR_TOKEN) {
+            error!("Failed to get valid response: {}", content_delta.content);
+            self.error = Some(content_delta.content);
+
+            if let Some(usage) = &content_delta.usage {
+                debug!("There is some usage: {:?}", usage);
+                self.ui_state.total_cost += self.usage_as_cost(usage).unwrap();
+            }
+        } else if let Some(last_message) = self.messages.last_mut() {
+            if last_message.role == Role::Assistant {
+                last_message.content = content_delta.content;
+
+                if let Some(usage) = &content_delta.usage {
+                    debug!("There is some usage: {:?}", usage);
+                    self.ui_state.total_cost += self.usage_as_cost(usage).unwrap();
+                }
+                // ctx.request_repaint(); // Request immediate repaint to show update
+            }
+        }
+        if content_delta.is_complete {
+            self.is_sending = false;
+        }
+    }
+
+    #[deprecated]
     fn handle_api_response(&mut self, response: Result<ExtractedResponse, String>) {
         match response {
             Ok(response) => {
@@ -197,7 +226,7 @@ impl ClauChatApp {
             }
         }
         self.is_sending = false;
-        info!("Total cost: {}", self.ui_state.total_cost);
+        // info!("Total cost: {}", self.ui_state.total_cost);
     }
 
     /// Counting tokens using ChatGPT tokenizer, 
@@ -274,7 +303,7 @@ impl ClauChatApp {
         let client = client.clone();
         let messages = self.messages.clone();
 
-        let (tx, rx) = tokio_mpsc::channel::<String>(100);
+        let (tx, rx) = tokio_mpsc::channel::<AppMessageDelta>(100);
         self.stream_receiver = Some(rx);
 
         // message we are going to dump the string into
@@ -284,28 +313,34 @@ impl ClauChatApp {
         });
 
         self.runtime.spawn(async move {
+            let mut content_delta = AppMessageDelta::default();
+
             match client.send_message_streaming(messages).await {
                 Ok(mut stream) => {
-                    let mut full_content = String::new();
-
                     while let Some(chunk_result) = stream.next().await {
                         match chunk_result {
                             Ok(buffer) => {
-                                full_content.push_str(&buffer.content);
-                                let _ = tx.send(full_content.clone()).await;
-                                if buffer.is_complete {
+                                content_delta.content.push_str(&buffer.content);
+                                content_delta.is_complete = buffer.is_complete;
+                                content_delta.usage = buffer.usage;
+                                let _ = tx.send(content_delta.clone()).await;
+                                if content_delta.is_complete {
                                     break;
                                 }
                             }
                             Err(e) => {
-                                let _ = tx.send(format!("Err\u{274}r: {}", e)).await;
+                                content_delta.content = format!("{} {}", STREAM_ERROR_TOKEN, e);
+                                content_delta.is_complete = true;
+                                let _ = tx.send(content_delta).await;
                                 break;
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    let _ = tx.send(format!("Err\u{274}r: {}", e)).await;
+                    content_delta.content = format!("{} {}", STREAM_ERROR_TOKEN, e);
+                    content_delta.is_complete = true;
+                    let _ = tx.send(content_delta).await;
                 }
             }
         });
@@ -371,26 +406,18 @@ impl eframe::App for ClauChatApp {
         }
 
         if let Some(receiver) = &mut self.stream_receiver {
-            if let Ok(content) = receiver.try_recv() {
-                if content.contains("Err\u{274}r:") {
-                    error!("Failed to get valid response: {}", content);
-                    self.error = Some(content);
-                } else if let Some(last_message) = self.messages.last_mut() {
-                    if last_message.role == Role::Assistant {
-                        last_message.content = content;
-                        ctx.request_repaint(); // Request immediate repaint to show update
-                    }
-                }
+            if let Ok(content_delta) = receiver.try_recv() {
+                self.handle_stream_response(content_delta);
             }
         }
 
-        if let Some(receiver) = &self.response_receiver {
-            if let Ok(response) = receiver.try_recv() {
-                info!("Handling response");
-                self.handle_api_response(response);
-                self.response_receiver = None;
-            }
-        }
+        // if let Some(receiver) = &self.response_receiver {
+        //     if let Ok(response) = receiver.try_recv() {
+        //         info!("Handling response");
+        //         self.handle_api_response(response);
+        //         self.response_receiver = None;
+        //     }
+        // }
 
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut update_api_key_action: Option<String> = None;
