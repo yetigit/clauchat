@@ -13,14 +13,12 @@ mod app;
 use app::ClauChatApp;
 
 //TODO:
-//-[] add scroll area for text input
 //-[] change colors of light theme
+//-[] save window rect in config
+// ---
 //-[] implement claude's system option, 
 //-[] implement claude temperature setting
 //-[] implement prompt caching
-//-[] replies should be on opposite sides,
-// e.g user post is offset to the right, claude answer to the left
-//-[] save window rect in config
 
 fn main() -> Result<(), eframe::Error> {
     dotenv::dotenv().ok();

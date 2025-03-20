@@ -163,72 +163,78 @@ pub fn render_input_area(
 
     let available_width = ui.available_width();
     let available_height = ui.available_height();
-    ui.allocate_ui_with_layout(
-        egui::vec2(available_width, available_height),
-        Layout::left_to_right(Align::LEFT),
-        |ui| {
-            let text_edit = TextEdit::multiline(input)
-                .hint_text("Ask anything...")
-                .desired_width(available_width - 70.0)
-                .min_size(egui::vec2(available_width - 70.0, available_height))
-                .lock_focus(true)
-                .margin(Marginf {
-                    left: 0.0,
-                    right: 70.0,
-                    top: 0.0,
-                    bottom: 0.0,
-                });
 
-            let text_edit_response = ui.add(text_edit);
-            if text_edit_response.changed() {
-                on_input_change();
-            }
+    ScrollArea::vertical()
+        .id_salt("input_scroll")
+        .auto_shrink([false, false])
+        .stick_to_bottom(true)
+        .show(ui, |ui| {
+            ui.allocate_ui_with_layout(
+                egui::vec2(available_width, available_height),
+                Layout::left_to_right(Align::LEFT),
+                |ui| {
+                    let text_edit = TextEdit::multiline(input)
+                        .hint_text("Ask anything...")
+                        .desired_width(available_width - 70.0)
+                        .min_size(egui::vec2(available_width - 70.0, available_height))
+                        .lock_focus(true)
+                        .margin(Marginf {
+                            left: 0.0,
+                            right: 70.0,
+                            top: 0.0,
+                            bottom: 0.0,
+                        });
 
-            // TODO: tooltip for these
-            if let Some(_input_cost) = ui_state.input_cost_display {
-                let overlay_pos = ui.min_rect().max - egui::vec2(6.0, 8.0);
-                let builder = egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
-                    overlay_pos - egui::vec2(70.0, 40.0),
-                    egui::vec2(72.0, 40.0),
-                ));
+                    let text_edit_response = ui.add(text_edit);
+                    if text_edit_response.changed() {
+                        on_input_change();
+                    }
 
-                ui.allocate_new_ui(builder, |ui| {
-                    let overlay_text = RichText::new(format!("${:.6}", _input_cost))
-                        .color(Color32::from_rgba_premultiplied(250, 250, 210, 255))
-                        .size(14.0);
-                    ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {
-                        // debug!("make price overlay");
-                        ui.label(overlay_text);
+                    if let Some(_input_cost) = ui_state.input_cost_display {
+                        let overlay_pos = ui.min_rect().max - egui::vec2(6.0, 8.0);
+                        let builder = egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
+                            overlay_pos - egui::vec2(70.0, 40.0),
+                            egui::vec2(72.0, 40.0),
+                        ));
+
+                        ui.allocate_new_ui(builder, |ui| {
+                            let overlay_text = RichText::new(format!("${:.6}", _input_cost))
+                                .color(Color32::from_rgba_premultiplied(250, 250, 210, 255))
+                                .size(14.0);
+                            ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {
+                                // debug!("make price overlay");
+                                ui.label(overlay_text);
+                            });
+                        });
+                    }
+
+                    let overlay_pos = ui.min_rect().max - egui::vec2(6.0, 2.0);
+                    let builder = egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
+                        overlay_pos - egui::vec2(70.0, 70.0),
+                        egui::vec2(72.0, 40.0),
+                    ));
+
+                    ui.allocate_new_ui(builder, |ui| {
+                        let overlay_text = RichText::new(format!("${:.6}", ui_state.total_cost))
+                            .color(Color32::from_rgba_premultiplied(255, 191, 145, 255))
+                            .size(14.0);
+                        ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {
+                            // debug!("make price overlay");
+                            ui.label(overlay_text);
+                        });
                     });
-                });
-            }
 
-            let overlay_pos = ui.min_rect().max - egui::vec2(6.0, 2.0);
-            let builder = egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
-                overlay_pos - egui::vec2(70.0, 70.0),
-                egui::vec2(72.0, 40.0),
-            ));
+                    // Handle Enter key to send (but allow Shift+Enter for new lines)
+                    let pressed_enter = text_edit_response.has_focus()
+                        && ui.input(|i| i.key_pressed(egui::Key::Enter) && i.modifiers.shift);
 
-            ui.allocate_new_ui(builder, |ui| {
-                let overlay_text = RichText::new(format!("${:.6}", ui_state.total_cost))
-                    .color(Color32::from_rgba_premultiplied(255, 191, 145, 255))
-                    .size(14.0);
-                ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {
-                    // debug!("make price overlay");
-                    ui.label(overlay_text);
-                });
-            });
+                    // Call the callback if either the enter key was pressed or the button was clicked
+                    if pressed_enter && !input.trim().is_empty() && !is_sending {
+                        on_send();
+                    }
 
-            // Handle Enter key to send (but allow Shift+Enter for new lines)
-            let pressed_enter = text_edit_response.has_focus()
-                && ui.input(|i| i.key_pressed(egui::Key::Enter) && i.modifiers.shift);
-
-            // Call the callback if either the enter key was pressed or the button was clicked
-            if pressed_enter && !input.trim().is_empty() && !is_sending {
-                on_send();
-            }
-
-            ui.add_space(14.0);
-        },
-    );
+                    ui.add_space(14.0);
+                },
+            );
+        });
 }
