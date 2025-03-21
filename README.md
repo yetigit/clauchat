@@ -17,6 +17,7 @@ I also chose to build it in Rust as a way to deepen my understanding of the lang
 
 ## Features
 
+**Hit `Shift+Enter` to send a message**
 - [x] UI
 - [x] Basic chat interaction with Claude
 - [x] Code block formatting
@@ -47,7 +48,7 @@ cargo run --release
 
 2. Click on the `Settings` button in the top-right corner
 3. Enter your Anthropic API key
-4. Start chatting!
+4. Start chatting and **Hit `Shift+Enter` to send**
 
 ## Configuration
 
