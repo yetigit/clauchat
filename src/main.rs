@@ -15,8 +15,9 @@ use app::ClauChatApp;
 //TODO:
 //-[] change colors of light theme
 //-[] save window rect in config
-// ---
+//-[] upload files
 //-[] implement claude's system option, 
+// ---
 //-[] implement claude temperature setting
 //-[] implement prompt caching
 
