@@ -2,6 +2,8 @@
 
 A minimal chatbot UI for Anthropic **Claude** models built in Rust.
 
+![clauchat_2i6U7mAKGF](https://github.com/user-attachments/assets/596b12b9-5e2a-4208-871e-c688d15422d3)
+
 ## Why ClauChat ? 
 
 I was looking for the following: 
