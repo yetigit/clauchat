@@ -10,7 +10,7 @@ mod ui;
 mod price;
 mod app;
 
-use app::ClauChatApp;
+use crate::app::ClauChatApp;
 
 //TODO:
 //-[] change colors of light theme
